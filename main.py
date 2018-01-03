@@ -14,7 +14,7 @@ import functions as func
 
 if __name__ == '__main__':
     # this is the main
-    h5file = "./data/test.hdf5"
+    h5file = "./data/neuron_test.hdf5"
     # with h5py.File(h5file, "r") as f:
     f = h5py.File(h5file, "r")
     recon = f["reconstruction"]
