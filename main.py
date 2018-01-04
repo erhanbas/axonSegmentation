@@ -25,16 +25,23 @@ if __name__ == '__main__':
     end = recon[ix+1,2:5]
     start_ = np.asarray(start,np.int)
     end_ = np.asarray(end,np.int)
-##
-    shift = 0
-    bbox_min = np.min((start_,end_),axis=0)-shift
-    bbox_max = np.max((start_,end_),axis=0)+shift+1
+
+    # vesselness convolution sigmas
+    sigmas = np.array([0.5,1.0,1.5,2,2.5,3,5,7,10])
+    window_size = 2
+    # padding needs to be at least window_size/2*sigma
+    padding = np.max(window_size*sigmas/2).__int__()
+
+    bbox_min = np.min((start_,end_),axis=0)-padding
+    bbox_max = np.max((start_,end_),axis=0)+padding+1
     bbox_size = bbox_max-bbox_min
     start_ = start_ - bbox_min
     end_ = end_-bbox_min
+    roi = ((padding),())
 
     # crop
     crop = volume[bbox_min[0]:bbox_max[0],bbox_min[1]:bbox_max[1],bbox_min[2]:bbox_max[2]]
+
     # swap x-z for visualization
     if False:
         crop = crop.swapaxes(0,2)
@@ -42,32 +49,25 @@ if __name__ == '__main__':
         start_ = start_[[2,1,0]]
         end_ = end_[[2,1,0]]
 
-    # plt.imshow(np.max(crop[:,:,:,0], axis=0), cmap='gray')
-##
-    # `vol` your already segmented 3d-lungs, using one of the other scripts
-    # `mask` you can start with all 1s, and after this operation, it'll have 0's where you need to delete
-    # `start_point` a tuple of ints with (z, y, x) coordinates
-    # `epsilon` the maximum delta of conductivity between two voxels for selection
-    # `HU_mid` Hounsfield unit midpoint
-    # `HU_range` maximim distance from `HU_mid` that will be accepted for conductivity
-    # `fill_with` value to set in `mask` for the appropriate location in vol that needs to be flood filled
     inputim = np.asarray(crop[:,:,:,0], np.float)
-##
-    # shorthestpath between two points
+    ##
 
     importlib.reload(frangi)
-    scale_range = (1, 10);scale_step = 2
-    sigmas = np.arange(scale_range[0], scale_range[1], scale_step)
-    sd,ds=frangi.frangi(inputim, scale_range, scale_step, alpha=0.5, beta=0.5, frangi_c=500, black_vessels=False)
+    filtresponse, scaleresponse =frangi.frangi(inputim, sigmas, alpha=0.1, beta=.5, frangi_c=1000, black_vessels=False)
+    plt.figure()
+    plt.imshow(np.max(filtresponse, axis=2).T, cmap='gray')
 
+    plt.figure()
+    plt.imshow(np.max(inputim, axis=2).T, cmap='gray')
 
 ##
     mask = inputim*0
     start_point = start_
     start_point = np.array([7,1,3])
     import functions as func
-    reload(func)
-    seg = func.region_grow(inputim, mask, start_point, epsilon=1000, HU_mid=inputim[start_point[0],start_point[2],start_point[2]], HU_range=1000, fill_with=255)
+
+    importlib.reload(func)
+    seg = func.region_grow(inputim, mask, start_point, epsilon=1000, HU_mid=inputim[start_point[0],start_point[1],start_point[2]], HU_range=1000, fill_with=255)
 
     plt.figure()
     for ii in range(5):
@@ -77,8 +77,7 @@ if __name__ == '__main__':
         ax.set_title(ii)
         # ax.tick_params(labeltop=True, labelright=True)
 ##
-#         # plt.figure()
-#     # plt.imshow(np.max(seg, axis=2).T, cmap='gray')
+
 #
 # ##
 #     import importlib
