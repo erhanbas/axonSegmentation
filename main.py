@@ -11,6 +11,8 @@ from frangi3d import frangi
 # from morphsnakes import morphsnakes as morph
 import importlib
 import functions as func
+from skimage import exposure
+
 
 if __name__ == '__main__':
     # this is the main
@@ -28,7 +30,7 @@ if __name__ == '__main__':
 
     # vesselness convolution sigmas
     sigmas = np.array([0.5,1.0,1.5,2,2.5,3,5,7,10])
-    window_size = 2
+    window_size = 3
     # padding needs to be at least window_size/2*sigma
     padding = np.max(window_size*sigmas/2).__int__()
 
@@ -53,7 +55,24 @@ if __name__ == '__main__':
     ##
 
     importlib.reload(frangi)
-    filtresponse, scaleresponse =frangi.frangi(inputim, sigmas, alpha=0.1, beta=.5, frangi_c=1000, black_vessels=False)
+    filtresponse, scaleresponse =frangi.frangi(inputim,
+                                               sigmas, alpha=0.1, beta=.5, frangi_c=1000, black_vessels=False,
+                                               window_size = window_size)
+
+    plt.close('all')
+    gamma_corrected = exposure.adjust_gamma(filtresponse, .5)
+    f, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4)
+    ax1.imshow(np.max(inputim, axis=2).T, cmap='gray')
+    ax2.imshow(np.max(filtresponse, axis=2).T, cmap='gray')
+    ax3.imshow(np.max(gamma_corrected, axis=2).T, cmap='gray')
+    ax4.imshow(np.max(scaleresponse * (filtresponse > .5), axis=2).T, cmap='gray')
+
+    # f, axarr = plt.subplots(3, 3)
+    # for it, ix in enumerate(sigmas):
+    #     axarr[np.unravel_index(it, (3, 3))].imshow(np.max(filtered_array[it], axis=2).T, cmap='gray')
+
+
+
     plt.figure()
     plt.imshow(np.max(filtresponse, axis=2).T, cmap='gray')
 

@@ -9,61 +9,52 @@ from vigra.filters import hessianOfGaussianEigenvalues as eHoG
 import matplotlib.pyplot as plt
 
 
-def frangi(nd_array, sigmas, alpha=0.5, beta=0.5, frangi_c=500, black_vessels=True):
+def frangi(nd_array, sigmas, alpha=0.5, beta=0.5, frangi_c=500, black_vessels=True, window_size = 2.0):
 
     if not nd_array.ndim == 3:
         raise(ValueError("Only 3 dimensions is currently supported"))
 
     # from https://github.com/scikit-image/scikit-image/blob/master/skimage/filters/_frangi.py#L74
-    # sigmas = np.arange(scale_range[0], scale_range[1], scale_step)
     if np.any(np.asarray(sigmas) < 0.0):
         raise ValueError("Sigma values less than zero are not valid")
 
     filtered_array = np.zeros(sigmas.shape + nd_array.shape)
-    window_size = 2.0
+    # window_size = 3.0
     step_size = [1.0, 1.0, 3.0]
-    eigenvalues_vig_=[]
+    # roi = ((10, 20), (200, 250))
     for i_sigma, sigma in enumerate(np.asarray(sigmas,np.float32)):
         if False:
             eigenvalues = absolute_hessian_eigenvalues(nd_array, sigma=sigma, scale=True)
         else:
-            # roi = ((10, 20), (200, 250))
-            scale = sigma*np.array([1,1,1])
-            print(scale)
-            if np.any(scale*window_size >= nd_array.shape):
-                # skip
-                break
             # sigma_d = np.min((np.array([1.0,1.0,1.0]),scale),axis=0)
-            # sigma_d = 0
+            scale = sigma*np.array([1,1,1])
+            if np.any(scale*window_size >= nd_array.shape):
+                break # skip
             eigenvalues_vig = eHoG(nd_array,scale=scale.tolist(), window_size=window_size, step_size=step_size)#sigma_d=sigma_d.tolist())
             # scale eigenvalues
             eigenvalues_vig *= scale**2
             eigenvalues=np.split(eigenvalues_vig,3,axis=3)
-            # eigenvalues = [eigenvalues_vig[:,:,:,ix] for ix in np.arange(eigenvalues_vig.shape[-1])]
-            # print(eigenvalues_vig.max(),eigenvalues[0].max())
-            # eigenvalues_vig_.append(eigenvalues)
 
         filtered_array[i_sigma] = compute_vesselness(*eigenvalues, alpha=alpha, beta=beta, c=frangi_c,
                                                black_white=black_vessels)
-    # return np.max(filtered_array, axis=0)
     filtresponse = np.max(filtered_array, axis=0)
-    scaleresponse = np.argmax(filtered_array, axis=0)
+    scaleresponse = sigmas[np.argmax(filtered_array, axis=0)]
 
-    plt.close('all')
-    f, axarr = plt.subplots(3, 3)
-    for it, ix in enumerate(sigmas):
-        axarr[np.unravel_index(it, (3, 3))].imshow(np.max(filtered_array[it], axis=2).T, cmap='gray')
+    # plt.close('all')
+    filtres = np.max(filtresponse, axis=2)
+    filtres_inds = np.argmax(filtresponse, axis=2)
+    # create grid
+    np.mgrid((filtres_inds.shape))
+
 
     gamma_corrected = exposure.adjust_gamma(filtresponse, .5)
-    f, (ax1,ax2,ax3,ax4) = plt.subplots(1,4)
+    f, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4)
     ax1.imshow(np.max(nd_array, axis=2).T, cmap='gray')
     ax2.imshow(np.max(filtresponse, axis=2).T, cmap='gray')
     ax3.imshow(np.max(gamma_corrected, axis=2).T, cmap='gray')
-    ax4.imshow(np.max(scaleresponse, axis=2).T, cmap='gray')
+    ax4.imshow(np.max(scaleresponse * (filtresponse > .2), axis=2).T, cmap='gray')
 
 
-
-    # [axarr[np.unravel_index(it, (3,3))].imshow(np.max(filtered_array[it], axis=2).T, cmap='gray') for it,ix in enumerate(sigmas)]
     return filtresponse, scaleresponse
 
 def sortbyabs(a, axis=0):
