@@ -12,6 +12,8 @@ from frangi3d import frangi
 import importlib
 import functions as func
 from skimage import exposure
+from sklearn import feature_extraction as feat
+
 
 
 if __name__ == '__main__':
@@ -56,8 +58,13 @@ if __name__ == '__main__':
 
     importlib.reload(frangi)
     filtresponse, scaleresponse =frangi.frangi(inputim,
-                                               sigmas, alpha=0.1, beta=.5, frangi_c=1000, black_vessels=False,
+                                               sigmas, alpha=0.05, beta=1.5, frangi_c=2000, black_vessels=False,
                                                window_size = window_size)
+
+    # search between nodes by traversing a weighted graph
+    # convert image to weighted graph
+    feat.img_to_graph(filtresponse)
+
 
     plt.close('all')
     gamma_corrected = exposure.adjust_gamma(filtresponse, .5)
