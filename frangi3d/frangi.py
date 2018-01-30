@@ -45,18 +45,6 @@ def frangi(nd_array, sigmas, alpha=0.5, beta=0.5, frangi_c=500, black_vessels=Tr
     filtres_inds = np.argmax(filtresponse, axis=2)
     # create grid
     # np.mgrid((filtres_inds.shape))
-
-
-    gamma_corrected = exposure.adjust_gamma(filtresponse, .5)
-    f, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4)
-    ax1.imshow(np.max(nd_array, axis=2).T, cmap='gray')
-    ax2.imshow(np.max(filtresponse, axis=2).T, cmap='gray')
-    ax3.imshow(np.max(gamma_corrected, axis=2).T, cmap='gray')
-    ax4.imshow(np.max(scaleresponse * (filtresponse > .1), axis=2).T, cmap='gray')
-    plt.title((alpha,beta,frangi_c))
-    plt.figure()
-
-
     return filtresponse, scaleresponse
 
 def sortbyabs(a, axis=0):
