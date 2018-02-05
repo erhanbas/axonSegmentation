@@ -17,61 +17,106 @@ from skimage import graph as skig
 from scipy.sparse import csgraph as csg
 from sklearn.cluster import spectral_clustering
 import SimpleITK as sitk
+from skimage import io
 
 import segment as seg
+import os
+def test(volume,recon):
+# format(recon[iter, 0].__int__(), 1, txt[0], txt[1], txt[2], 1, recon[iter, 1].__int__()))
+
+    with open('./data/neuron_test-1.swc','w') as fswc:
+        for iter,txt in enumerate(recon[:,:]):
+            fswc.write('{:.0f} {:.0f} {:.2f} {:.2f} {:.2f} {:.2f} {:.0f}\n'.format(txt[0],txt[1],txt[2]-1,txt[3]-1,txt[4]-1,txt[5],txt[6]))
+
+    io.imsave('./data/neuron_test.tif',np.swapaxes(volume[:,:,:,0],2,0))
+
 
 if __name__ == '__main__':
     # this is the main
-    h5file = "./data/neuron_test.hdf5"
+    datafolder = '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/navigator/data'
+    swcname = '2017-11-17_G-017_Seg-1'
+    swc_file = os.path.join(datafolder,swcname+'.swc')
+    cropped_swc_file = os.path.join(datafolder,swcname+'_cropped.swc')
+    cropped_h5_file =  os.path.join(datafolder,swcname+'_cropped.h5')
+    cropped_tif_file =  os.path.join(datafolder,swcname+'_cropped.tif')
+
     # with h5py.File(h5file, "r") as f:
-    f = h5py.File(h5file, "r")
+    f = h5py.File(cropped_h5_file, "r")
     recon = f["reconstruction"]
     volume = f["volume"]
-##
-    ix=1
-    start = np.asarray(recon[ix,2:5],np.int)
-    end = np.asarray(recon[ix+1,2:5],np.int)
+# for each branch, crop a box, run segmentation based on:
+    # 1) frangi vesselness filter
+    # 2) stat thresholding
+    # 3) active countours
+    for ix, txt in enumerate(recon[:, :]):
+        ix=0
+        start = np.asarray(recon[ix,2:5],np.int)
+        end = np.asarray(recon[ix+1,2:5],np.int)
 
-    # vesselness convolution sigmas
-    sigmas = np.array([0.5,1.0,1.5,2,2.5,3,5,7,10])
-    window_size = 3
-    # padding needs to be at least window_size/2*sigma
-    padding = np.max(window_size*sigmas/2).__int__()
+        # vesselness convolution sigmas
+        sigmas = np.array([0.5,1.0,1.5,2,2.5,3,5,7,10])
+        window_size = 3
+        # padding needs to be at least window_size/2*sigma
+        padding = np.max(window_size*sigmas/2).__int__()
 
-    bbox_min = np.min((start,end),axis=0)-padding
-    bbox_max = np.max((start,end),axis=0)+padding+1
-    bbox_size = bbox_max-bbox_min
-    start_ = start - bbox_min
-    end_ = end-bbox_min
-    roi = ((padding),())
+        bbox_min = np.min((start,end),axis=0)-padding
+        bbox_max = np.max((start,end),axis=0)+padding+1 # add one to make python inclusive
+        bbox_size = bbox_max-bbox_min
+        start_ = start - bbox_min
+        end_ = end-bbox_min
+        roi = ((padding),())
 
-    # crop
-    crop = volume[bbox_min[0]:bbox_max[0],bbox_min[1]:bbox_max[1],bbox_min[2]:bbox_max[2]]
-    # crop = volume[bbox_min[0]:bbox_max[0],bbox_min[1]:bbox_max[1],375,0]
+        # crop
+        crop = volume[bbox_min[0]:bbox_max[0],bbox_min[1]:bbox_max[1],bbox_min[2]:bbox_max[2]]
+        # crop = volume[bbox_min[0]:bbox_max[0],bbox_min[1]:bbox_max[1],375,0]
+        # f, (ax1) = plt.subplots(1, 1)
+        # ax1.imshow(crop.T, cmap='gray')
+        # swap x-z for visualization
+        if False:
+            crop = crop.swapaxes(0,2)
+            bbox_size = bbox_size[[2,1,0]]
+            start_ = start_[[2,1,0]]
+            end_ = end_[[2,1,0]]
+
+        inputim = np.asarray(crop[:,:,:,0], np.float)
+        ##
+
+        importlib.reload(frangi)
+        filtresponse, scaleresponse =frangi.frangi(inputim,
+                                                   sigmas, alpha=0.05, beta=1.5, frangi_c=2000, black_vessels=False,
+                                                   window_size = window_size)
+
+        # cost: high intensity low scale
+        cost_array = scaleresponse/(0.001+filtresponse)
+        cost_array[cost_array>100]=100
+
+        cost_array = sitk.GetArrayFromImage(sitk.BinaryThreshold(sitk.GetImageFromArray(cost_array),0,100,outsideValue=0))
+
+        path,cost = skig.route_through_array(cost_array, start=start_, end=end_, fully_connected=True)
+        path_array = np.asarray(path)
+        # sample along path
+        path_array_indicies = np.ravel_multi_index(path_array.T,cost_array.shape)
+
+        importlib.reload(seg)
+        segment = seg.volumeSeg(filtresponse,path_array,cost_array)
+        segment.runSeg()
+
+        sitk.Show(sitk.GetImageFromArray(np.swapaxes(inputim,2,0)))
+        sitk.Show(sitk.GetImageFromArray(np.swapaxes(scaleresponse,2,0)))
+        sitk.Show(sitk.GetImageFromArray(np.swapaxes(filtresponse,2,0)))
+        sitk.Show(sitk.GetImageFromArray(np.swapaxes(segment.mask_Threshold,2,0)))
+        sitk.Show(sitk.GetImageFromArray(np.swapaxes(segment.mask_ActiveContour,2,0)))
+
+
+    sitk.Show(sitk.GetImageFromArray(np.swapaxes(cost_array,2,0)))
+
+    sitk.Show(fastMarching_image)
+
     # f, (ax1) = plt.subplots(1, 1)
     # ax1.imshow(crop.T, cmap='gray')
-    # swap x-z for visualization
-    if False:
-        crop = crop.swapaxes(0,2)
-        bbox_size = bbox_size[[2,1,0]]
-        start_ = start_[[2,1,0]]
-        end_ = end_[[2,1,0]]
 
-    inputim = np.asarray(crop[:,:,:,0], np.float)
-    ##
 
-    importlib.reload(frangi)
-    filtresponse, scaleresponse =frangi.frangi(inputim,
-                                               sigmas, alpha=0.05, beta=1.5, frangi_c=2000, black_vessels=False,
-                                               window_size = window_size)
 
-    # cost: high intensity low scale
-    cost_array = scaleresponse/(0.0000001+filtresponse)
-    path,cost = skig.route_through_array(cost_array, start=start_, end=end_, fully_connected=True)
-    path_array = np.asarray(path)
-
-    segment = seg.volumeSeg(filtresponse,path_array)
-    segment.runSeg()
 
     if 0:
         f, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4)

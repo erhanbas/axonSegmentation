@@ -7,9 +7,10 @@ import numpy as np
 # from downloaddata import fetch_data as fdata
 
 class volumeSeg(object):
-    def __init__(self,inputimage,path_array):
+    def __init__(self,inputimage,path_array,cost_array=None):
         self.seeds = path_array
         self.inputimage = inputimage
+        self.cost_array = cost_array
 
     def convert2itk(self,inputimage):
             tmp = sitk.GetImageFromArray(np.swapaxes(inputimage,2,0))
@@ -17,6 +18,10 @@ class volumeSeg(object):
 
     def runSeg(self,radius=1):
         inim = self.convert2itk(self.inputimage) # converts to itk u8bit image
+        if ~np.all(np.isnan(self.cost_array)):
+            cost = self.convert2itk(self.cost_array)
+        else:
+            cost = self.cost_array
         seg = sitk.Image(inim.GetSize(), sitk.sitkUInt8) # holder for initialization
         seg.CopyInformation(inim)
         for idx, seed in enumerate(self.seeds):
@@ -24,17 +29,20 @@ class volumeSeg(object):
         # Binary dilate enlarges the seed mask by 3 pixels in all directions.
         seg = sitk.BinaryDilate(seg, radius)
         # based on thresholding
-        self.mask = self.segmentBasedOnThreshold(inim,seg)
+        self.mask_Threshold = np.swapaxes(sitk.GetArrayFromImage(self.segmentBasedOnThreshold(inim,seg)),2,0)
         # based on active contours
-        self.mask = self.segmentBasedOnActiveContours(inim,seg)
+        self.mask_ActiveContour = np.swapaxes(sitk.GetArrayFromImage(self.segmentBasedOnActiveContours(inim,seg,cost)),2,0)
 
-    def segmentBasedOnActiveContours(self,input,initseg):
+    def segmentBasedOnActiveContours(self,input,initseg,cost,radius=1):
         # We're going to build the following pipelines:
         # 1. reader -> smoothing -> gradientMagnitude -> sigmoid -> FI
         # 2. fastMarching -> geodesicActiveContour(FI) -> thresholder -> writer
         # The output of pipeline 1 is a feature image that is used by the
         # geodesicActiveContour object.  Also see figure 9.18 in the ITK
         dims = input.GetSize()
+        seg = sitk.BinaryDilate(initseg, radius)
+        stats = sitk.LabelStatisticsImageFilter()
+        stats.Execute(input, seg)
 
         # TimeStep=0.125,
         # NumberOfIterations=5,
@@ -46,35 +54,46 @@ class volumeSeg(object):
         smoothed_image = smoothing.Execute(sitk.Cast(input, sitk.sitkFloat32))
 
         grad = sitk.GradientMagnitudeRecursiveGaussianImageFilter()
-        grad.SetSigma(1.0)
         grad_image = grad.Execute(smoothed_image)
 
+        # sigmoid filter:
+        # (Max-Min)*1/(1+e^(-(I-\betha)/\alpha))+Min
+
+        beta = stats.GetMedian(1)#np.max((stats.GetMaximum(1) - stats.GetMedian(1),stats.GetMedian(1)))
+        alpha = stats.GetSigma(1)/2
         sigmoid = sitk.SigmoidImageFilter()
         sigmoid.SetOutputMinimum(0.0)
         sigmoid.SetOutputMaximum(1.1)
-        sigmoid.SetAlpha(-.05)
-        sigmoid.SetBeta(3)
+        sigmoid.SetAlpha(alpha)
+        sigmoid.SetBeta(beta)
         sigmoid_image = sigmoid.Execute(grad_image)
+        # sitk.Show(sigmoid_image)
+        if 0:
+            fastMarching = sitk.FastMarchingImageFilter()
+            for seed in self.seeds:
+                fastMarching.AddTrialPoint((seed.tolist()))
+            fastMarching_image = sitk.Cast(fastMarching.Execute(sigmoid_image), sitk.sitkFloat32)
+        else:
+            fastMarching_image = sitk.SignedMaurerDistanceMap(initseg, insideIsPositive=True, useImageSpacing=True)
+            if cost:
+                fastMarching_image = sitk.Cast(cost, sitk.sitkFloat32)
 
-        fastMarching = sitk.FastMarchingImageFilter()
-        for seed in self.seeds:
-            fastMarching.AddTrialPoint((seed.tolist()))
-        fastMarching_image = fastMarching.Execute(sigmoid_image)
+        geoActiveCont = sitk.GeodesicActiveContourLevelSetImageFilter()
+        geoActiveCont.SetNumberOfIterations(800)
+        geoActiveCont.SetCurvatureScaling(1.0)
+        geoActiveCont.SetAdvectionScaling(1.0)
+        geoActiveCont.SetMaximumRMSError(0.02)
+        geoActiveCont.ReverseExpansionDirectionOn()
+        # geoActiveCont.SetPropagationScaling()
+        geoActiveCont_image = geoActiveCont.Execute(fastMarching_image,sigmoid_image)
 
-    # geodesicActiveContour = itk.GeodesicActiveContourLevelSetImageFilter[
-    #     InternalImageType, InternalImageType, InternalPixelType].New(fastMarching, sigmoid,
-    #                                                                  PropagationScaling=float(argv[9]),
-    #                                                                  CurvatureScaling=1.0,
-    #                                                                  AdvectionScaling=1.0,
-    #                                                                  MaximumRMSError=0.02,
-    #                                                                  NumberOfIterations=800
-    #                                                                  )
-    #
-    # thresholder = itk.BinaryThresholdImageFilter[InternalImageType, OutputImageType].New(geodesicActiveContour,
-    #                                                                                      LowerThreshold=-1000,
-    #                                                                                      UpperThreshold=0,
-    #                                                                                      OutsideValue=0,
-    #                                                                                      InsideValue=255)
+        binary = sitk.BinaryThresholdImageFilter()
+        binary.SetLowerThreshold(0)
+        binary.SetUpperThreshold(1000)
+        binary.SetOutsideValue(0)
+        binary.SetInsideValue(255)
+        mask = binary.Execute(geoActiveCont_image)
+        return mask
 
     def segmentBasedOnThreshold(self,inim,seg):
         init_ls = sitk.SignedMaurerDistanceMap(seg, insideIsPositive=False, useImageSpacing=True)
@@ -82,7 +101,7 @@ class volumeSeg(object):
         stats.Execute(inim, seg)
 
         factor = .5
-        lower_threshold =  stats.GetMean(1)-factor*stats.GetSigma(1)
+        lower_threshold =  stats.GetMedian(1)-factor*stats.GetSigma(1)
         upper_threshold = 255  # np.min((255,stats.GetMean(1)+factor*stats.GetSigma(1)))
 
         lsFilter = sitk.ThresholdSegmentationLevelSetImageFilter()
@@ -94,7 +113,7 @@ class volumeSeg(object):
         lsFilter.SetPropagationScaling(1)
         lsFilter.ReverseExpansionDirectionOff()
         ls = lsFilter.Execute(init_ls, sitk.Cast(inim, sitk.sitkFloat32))
-        mask = ls < 0
+        mask = sitk.Cast(255*(ls < 0), sitk.sitkUInt8)
         if 0:
             simg_255 = sitk.Cast(sitk.RescaleIntensity(inim), sitk.sitkUInt8)
             idx = self.seeds[0]
@@ -108,62 +127,4 @@ class volumeSeg(object):
             myshow3d(sitk.LabelOverlay(self.inputimage, seg),zslices=[17,18,19,20,21], dpi=20, title='init')
             myshow3d(sitk.LabelOverlay(simg_255, mask),zslices=[17,18,19,20,21], dpi=20, title='init')
 
-        return (mask)
-
-
-            # def tmp(self):
-    #     idx = tuple(initLocation)
-    #     pt = simg.TransformIndexToPhysicalPoint(idx)
-    #     seg = sitk.Image(simg.GetSize(), sitk.sitkUInt8)
-    #     seg.CopyInformation(simg)
-    #
-    #     seg[idx] = 1
-    #     seg = sitk.BinaryDilate(seg, 1)
-    #
-    #     stats = sitk.LabelStatisticsImageFilter()
-    #     stats.Execute(simg, seg)
-    #
-    #     factor = 2
-    #     lower_threshold = 25  # stats.GetMean(1)
-    #     upper_threshold = 255  # np.min((255,stats.GetMean(1)+factor*stats.GetSigma(1)))
-    #
-    #     init_ls = sitk.SignedMaurerDistanceMap(seg, insideIsPositive=False, useImageSpacing=True)
-    #     myshow3d(init_ls, zslices=range(idx[2] - zslice_offset, idx[2] + zslice_offset + 1, zslice_offset), dpi=20,
-    #              title=t)
-    #
-    #     lsFilter = sitk.ThresholdSegmentationLevelSetImageFilter()
-    #     lsFilter.SetLowerThreshold(lower_threshold)
-    #     lsFilter.SetUpperThreshold(upper_threshold)
-    #     lsFilter.SetMaximumRMSError(0.02)
-    #     lsFilter.SetNumberOfIterations(1000)
-    #     lsFilter.SetCurvatureScaling(1.5)
-    #     lsFilter.SetPropagationScaling(1)
-    #     lsFilter.ReverseExpansionDirectionOn()
-    #     ls = lsFilter.Execute(init_ls, sitk.Cast(simg, sitk.sitkFloat32))
-    #
-    #     t = "LevelSet after " + str(lsFilter.GetNumberOfIterations()) + " iterations"
-    #     zslice_offset = 1
-    #     sitk.Show(ls > 0)
-    #     myshow3d(sitk.LabelOverlay(simg_255, ls > 0),
-    #              zslices=range(idx[2] - zslice_offset, idx[2] + zslice_offset + 1, zslice_offset), dpi=20, title=t)
-        #
-        # gradientMagnitude = sitk.GradientMagnitudeRecursiveGaussianImageFilter()
-        # gradientMagnitude.SetSigma(2)
-        # featureImage = sitk.BoundedReciprocal( gradientMagnitude.Execute(simg))
-        # geodesicActiveContour = sitk.GeodesicActiveContourLevelSetImageFilter()
-        # geodesicActiveContour.SetPropagationScaling(1)
-        # geodesicActiveContour.SetCurvatureScaling(.5)
-        # geodesicActiveContour.SetAdvectionScaling(1.0)
-        # geodesicActiveContour.SetMaximumRMSError(0.01)
-        # geodesicActiveContour.SetNumberOfIterations(1000)
-        #
-        # init_ls = sitk.Cast(init_ls, featureImage.GetPixelID()) * -1 + 0.5
-        # levelset = geodesicActiveContour.Execute(init_ls, featureImage )
-        #
-        # print( "RMS Change: ", geodesicActiveContour.GetRMSChange() )
-        # print( "Elapsed Iterations: ", geodesicActiveContour.GetElapsedIterations() )
-        # contour = sitk.BinaryContour( sitk.BinaryThreshold( levelset, -1000, 0 ) )
-        # # sitk.Show(sitk.LabelOverlay(simg, contour), "Levelset Countour")
-        # sitk.Show(contour, "Levelset Countour")
-
-
+        return mask
