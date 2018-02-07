@@ -7,21 +7,25 @@ import numpy as np
 # from downloaddata import fetch_data as fdata
 
 class volumeSeg(object):
-    def __init__(self,inputimage,path_array,cost_array=None):
+    def __init__(self,inputimage,path_array,cost_array=np.ones((1,1,1))*float('nan')):
         self.seeds = path_array
         self.inputimage = inputimage
         self.cost_array = cost_array
 
-    def convert2itk(self,inputimage):
-            tmp = sitk.GetImageFromArray(np.swapaxes(inputimage,2,0))
-            return (sitk.Cast(sitk.RescaleIntensity(tmp), sitk.sitkUInt8))
+    def convert2itk(self,inputimage,type=sitk.sitkUInt8):
+        # converts to rescaled 8bit itk image format
+        tmp = sitk.GetImageFromArray(np.swapaxes(inputimage,2,0))
+        return (sitk.Cast(sitk.RescaleIntensity(tmp), type))
 
     def runSeg(self,radius=1):
         inim = self.convert2itk(self.inputimage) # converts to itk u8bit image
-        if ~np.all(np.isnan(self.cost_array)):
-            cost = self.convert2itk(self.cost_array)
-        else:
-            cost = self.cost_array
+        cost = sitk.GetImageFromArray(np.swapaxes(self.cost_array,2,0))
+        cc = sitk.GetArrayFromImage(cost)
+        print(np.max(cc), np.min(cc))
+        # if ~np.all(np.isnan(self.cost_array)):
+        #     cost = self.convert2itk(self.cost_array)
+        # else:
+        #     cost = self.cost_array
         seg = sitk.Image(inim.GetSize(), sitk.sitkUInt8) # holder for initialization
         seg.CopyInformation(inim)
         for idx, seed in enumerate(self.seeds):
@@ -75,8 +79,10 @@ class volumeSeg(object):
             fastMarching_image = sitk.Cast(fastMarching.Execute(sigmoid_image), sitk.sitkFloat32)
         else:
             fastMarching_image = sitk.SignedMaurerDistanceMap(initseg, insideIsPositive=True, useImageSpacing=True)
-            if cost:
-                fastMarching_image = sitk.Cast(cost, sitk.sitkFloat32)
+            if cost.GetSize()==initseg.GetSize():
+                cc = sitk.GetArrayFromImage(cost)
+                print(np.max(cc),np.min(cc))
+                fastMarching_image = fastMarching_image*sitk.Cast(cost, sitk.sitkFloat32)
 
         geoActiveCont = sitk.GeodesicActiveContourLevelSetImageFilter()
         geoActiveCont.SetNumberOfIterations(800)
@@ -100,8 +106,8 @@ class volumeSeg(object):
         stats = sitk.LabelStatisticsImageFilter()
         stats.Execute(inim, seg)
 
-        factor = .5
-        lower_threshold =  stats.GetMedian(1)-factor*stats.GetSigma(1)
+        factor = .1
+        lower_threshold =  stats.GetMinimum(1)-factor*stats.GetSigma(1)
         upper_threshold = 255  # np.min((255,stats.GetMean(1)+factor*stats.GetSigma(1)))
 
         lsFilter = sitk.ThresholdSegmentationLevelSetImageFilter()

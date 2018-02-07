@@ -1,6 +1,5 @@
 # import util
 import numpy as np
-# import pyface.qt
 import matplotlib.pyplot as plt
 # import improc
 # import os
@@ -18,6 +17,11 @@ from scipy.sparse import csgraph as csg
 from sklearn.cluster import spectral_clustering
 import SimpleITK as sitk
 from skimage import io
+import itertools
+import sys
+sys.path.insert(0, '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/lineScanFix')
+# import linefix as lnf
+
 
 import segment as seg
 import os
@@ -33,23 +37,28 @@ def test(volume,recon):
 
 if __name__ == '__main__':
     # this is the main
-    datafolder = '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/navigator/data'
-    swcname = '2017-11-17_G-017_Seg-1'
-    swc_file = os.path.join(datafolder,swcname+'.swc')
-    cropped_swc_file = os.path.join(datafolder,swcname+'_cropped.swc')
-    cropped_h5_file =  os.path.join(datafolder,swcname+'_cropped.h5')
-    cropped_tif_file =  os.path.join(datafolder,swcname+'_cropped.tif')
+    data_folder = '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/navigator/data'
+    swc_name = '2017-11-17_G-017_Seg-1'
+    swc_file = os.path.join(data_folder,swc_name+'.swc')
+    cropped_swc_file = os.path.join(data_folder,swc_name+'_cropped.swc')
+    cropped_h5_file =  os.path.join(data_folder,swc_name+'_cropped.h5')
+    cropped_h5_file_output =  os.path.join(data_folder,swc_name+'_cropped_segmented.h5')
 
-    # with h5py.File(h5file, "r") as f:
     f = h5py.File(cropped_h5_file, "r")
     recon = f["reconstruction"]
     volume = f["volume"]
-# for each branch, crop a box, run segmentation based on:
+
+    f_out = h5py.File(cropped_h5_file_output, "w")
+    dset_segmentation_AC = f_out.create_dataset("/segmentation/AC", volume.shape[:3], dtype='uint', chunks=f["volume"].chunks[:3], compression="gzip", compression_opts=9)
+    dset_segmentation_Frangi = f_out.create_dataset("/segmentation/Frangi", volume.shape[:3], dtype='uint', chunks=f["volume"].chunks[:3], compression="gzip", compression_opts=9)
+    dset_swc_Frangi = f_out.create_dataset("/segmentation/Frangi_swc", (), dtype='f')
+
+    # for each branch, crop a box, run segmentation based on:
     # 1) frangi vesselness filter
-    # 2) stat thresholding
-    # 3) active countours
+    # 2) active countours
+    # 3) stat thresholding: TODO: diffusion is buggy, might be better to switch to a regularized version
+    linkdata = []
     for ix, txt in enumerate(recon[:, :]):
-        ix=0
         start = np.asarray(recon[ix,2:5],np.int)
         end = np.asarray(recon[ix+1,2:5],np.int)
 
@@ -68,52 +77,67 @@ if __name__ == '__main__':
 
         # crop
         crop = volume[bbox_min[0]:bbox_max[0],bbox_min[1]:bbox_max[1],bbox_min[2]:bbox_max[2]]
-        # crop = volume[bbox_min[0]:bbox_max[0],bbox_min[1]:bbox_max[1],375,0]
-        # f, (ax1) = plt.subplots(1, 1)
-        # ax1.imshow(crop.T, cmap='gray')
-        # swap x-z for visualization
-        if False:
-            crop = crop.swapaxes(0,2)
-            bbox_size = bbox_size[[2,1,0]]
-            start_ = start_[[2,1,0]]
-            end_ = end_[[2,1,0]]
 
-        inputim = np.asarray(crop[:,:,:,0], np.float)
+        ## fix line shifts
+        # st = -9;en = 10;shift, shift_float = lnf.findShift(inputim[:,:inputim.shape[1]//2*2,:], st, en, False)
         ##
+        inputim = np.log(np.asarray(crop[:,:,:,0], np.float))
+        inputim =(inputim-inputim.min())/(inputim.max()-inputim.min())
 
+        ## FRANGI
         importlib.reload(frangi)
-        filtresponse, scaleresponse =frangi.frangi(inputim,
-                                                   sigmas, alpha=0.05, beta=1.5, frangi_c=2000, black_vessels=False,
-                                                   window_size = window_size)
+        filtresponse, scaleresponse =frangi.frangi(inputim, sigmas,window_size = window_size,
+                                                   alpha=0.01, beta=1.5, frangi_c=2*np.std(inputim), black_vessels=False)
+
+        # sitk.Show(sitk.GetImageFromArray(np.swapaxes(inputim,2,0)))
+        # sitk.Show(sitk.GetImageFromArray(np.swapaxes(filtresponse/np.max(filtresponse),2,0)))
+        # sitk.Show(sitk.GetImageFromArray(np.swapaxes(scaleresponse,2,0)))
 
         # cost: high intensity low scale
         cost_array = scaleresponse/(0.001+filtresponse)
         cost_array[cost_array>100]=100
 
-        cost_array = sitk.GetArrayFromImage(sitk.BinaryThreshold(sitk.GetImageFromArray(cost_array),0,100,outsideValue=0))
-
+        # shortest path based on cost_array
         path,cost = skig.route_through_array(cost_array, start=start_, end=end_, fully_connected=True)
         path_array = np.asarray(path)
+
         # sample along path
         path_array_indicies = np.ravel_multi_index(path_array.T,cost_array.shape)
 
+        # frangi radius estimate around tracing
+        radius_estimate = scaleresponse.flat[path_array_indicies]
+
+        # fine tuned swc file
+        xyz_locations = path_array + bbox_min
+
+        # radius as 4th column
+        branch_data = np.concatenate((xyz_locations,radius_estimate[:,None]),axis=1)
+
+        # paint hdf5
+        # TODO: func.painth5: converts swc or link data to an image
+
+        # store recon info
+        linkdata.append(branch_data)
+
+        ## tune parameters
+        # func.swapparams()
+
+        ## segmentation based on active contours
         importlib.reload(seg)
-        segment = seg.volumeSeg(filtresponse,path_array,cost_array)
+        if 1:
+            segment = seg.volumeSeg(filtresponse,path_array) # working
+        else: # use cost function to initialize segmentation
+            segment = seg.volumeSeg(inputim,path_array,cost_array=np.max(cost_array)-cost_array) # revert cost for positive active contour
+
         segment.runSeg()
+        #
+        # sitk.Show(sitk.GetImageFromArray(np.swapaxes(segment.mask_ActiveContour,2,0)))
+        # sitk.Show(sitk.GetImageFromArray(np.swapaxes(inputim,2,0)))
+        # sitk.Show(sitk.GetImageFromArray(np.swapaxes(filtresponse/np.max(filtresponse),2,0)))
 
-        sitk.Show(sitk.GetImageFromArray(np.swapaxes(inputim,2,0)))
-        sitk.Show(sitk.GetImageFromArray(np.swapaxes(scaleresponse,2,0)))
-        sitk.Show(sitk.GetImageFromArray(np.swapaxes(filtresponse,2,0)))
-        sitk.Show(sitk.GetImageFromArray(np.swapaxes(segment.mask_Threshold,2,0)))
-        sitk.Show(sitk.GetImageFromArray(np.swapaxes(segment.mask_ActiveContour,2,0)))
+        # paint segmentation result
+        dset_segmentation_AC[bbox_min[0]:bbox_max[0], bbox_min[1]:bbox_max[1], bbox_min[2]:bbox_max[2]] = segment.mask_ActiveContour
 
-
-    sitk.Show(sitk.GetImageFromArray(np.swapaxes(cost_array,2,0)))
-
-    sitk.Show(fastMarching_image)
-
-    # f, (ax1) = plt.subplots(1, 1)
-    # ax1.imshow(crop.T, cmap='gray')
 
 
 

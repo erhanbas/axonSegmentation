@@ -1,11 +1,60 @@
 from morphsnakes import morphsnakes as smorph
 # from chanvese import chanvese3d as cv3d
 import numpy as np
+import itertools
+
+def updateSwc():
+    1
+def painth5():
+    2
 
 def createBinaryMask(size,point1,point2):
     # creates a box around points
     it=1
 
+def swapparams():
+    ##################################
+    # run parameter search
+    Nc = 10  # number of points for (0, pi)
+    alphas = np.arange(0.025, 1.5, 0.025)
+    betas = np.arange(0.5, 2.5, 0.5)
+    frangi_cs = np.arange(500, 2500, 500)
+    it=0
+    vals = np.zeros((len(alphas)*len(betas)*len(frangi_cs),len(path_array_indicies)))
+    scales = np.zeros((len(alphas)*len(betas)*len(frangi_cs),len(path_array_indicies)))
+    for alpha, beta, frangi_c in itertools.product(alphas, betas, frangi_cs):
+        print (it,alpha, beta, frangi_c)
+        filtresponse, scaleresponse =frangi.frangi(inputim,
+                                                   sigmas, alpha=alpha, beta=beta, frangi_c=frangi_c, black_vessels=False,
+                                                   window_size = window_size)
+        # sample along recon
+        vals[it,:] = filtresponse.flat[path_array_indicies]
+        scales[it,:] = scaleresponse.flat[path_array_indicies]
+        it +=1
+
+    for alpha, beta, frangi_c in itertools.product(alphas, betas, frangi_cs):
+        print (it,alpha, beta, frangi_c)
+        filtresponse, scaleresponse =frangi.frangi(inputim,
+                                                   sigmas, alpha=alpha, beta=beta, frangi_c=frangi_c, black_vessels=False,
+                                                   window_size = window_size)
+        # sample along recon
+        vals[it,:] = filtresponse.flat[path_array_indicies]
+        scales[it,:] = scaleresponse.flat[path_array_indicies]
+        it +=1
+    # best response is the one that:
+    # * has uniform profile
+    # * has the high filter/scale ratio
+    response = vals/(scales**.5)
+    aa = np.argmax(np.min(response, axis=1) / np.std(response, axis=1))
+    it =0
+    for alpha, beta, frangi_c in itertools.product(alphas, betas, frangi_cs):
+        print (it,alpha, beta, frangi_c)
+        if it==aa:
+            filtresponse_, scaleresponse_ = frangi.frangi(inputim,
+                                                          sigmas, alpha=alpha, beta=beta, frangi_c=frangi_c, black_vessels=False, window_size=window_size)
+            break
+        else:
+            it+=1
 
 def rgb2gray(img):
     """Convert a RGB image to gray scale."""

@@ -1,3 +1,6 @@
 *.h5ls
+*.hdf5
+*.h5
 *.tif
+*.swc
 
