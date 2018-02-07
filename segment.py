@@ -21,7 +21,6 @@ class volumeSeg(object):
         inim = self.convert2itk(self.inputimage) # converts to itk u8bit image
         cost = sitk.GetImageFromArray(np.swapaxes(self.cost_array,2,0))
         cc = sitk.GetArrayFromImage(cost)
-        print(np.max(cc), np.min(cc))
         # if ~np.all(np.isnan(self.cost_array)):
         #     cost = self.convert2itk(self.cost_array)
         # else:
@@ -80,8 +79,6 @@ class volumeSeg(object):
         else:
             fastMarching_image = sitk.SignedMaurerDistanceMap(initseg, insideIsPositive=True, useImageSpacing=True)
             if cost.GetSize()==initseg.GetSize():
-                cc = sitk.GetArrayFromImage(cost)
-                print(np.max(cc),np.min(cc))
                 fastMarching_image = fastMarching_image*sitk.Cast(cost, sitk.sitkFloat32)
 
         geoActiveCont = sitk.GeodesicActiveContourLevelSetImageFilter()

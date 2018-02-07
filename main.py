@@ -43,15 +43,20 @@ if __name__ == '__main__':
     cropped_swc_file = os.path.join(data_folder,swc_name+'_cropped.swc')
     cropped_h5_file =  os.path.join(data_folder,swc_name+'_cropped.h5')
     cropped_h5_file_output =  os.path.join(data_folder,swc_name+'_cropped_segmented.h5')
+    cropped_tif_file_output =  os.path.join(data_folder,swc_name+'_cropped_segmented.tif')
 
     f = h5py.File(cropped_h5_file, "r")
     recon = f["reconstruction"]
     volume = f["volume"]
 
     f_out = h5py.File(cropped_h5_file_output, "w")
-    dset_segmentation_AC = f_out.create_dataset("/segmentation/AC", volume.shape[:3], dtype='uint', chunks=f["volume"].chunks[:3], compression="gzip", compression_opts=9)
-    dset_segmentation_Frangi = f_out.create_dataset("/segmentation/Frangi", volume.shape[:3], dtype='uint', chunks=f["volume"].chunks[:3], compression="gzip", compression_opts=9)
-    dset_swc_Frangi = f_out.create_dataset("/segmentation/Frangi_swc", (), dtype='f')
+    dset_segmentation_AC = f_out.create_dataset("/segmentation/AC", volume.shape[:3], dtype='uint8', chunks=f["volume"].chunks[:3], compression="gzip", compression_opts=9)
+    dset_segmentation_Frangi = f_out.create_dataset("/segmentation/Frangi", volume.shape[:3], dtype='uint8', chunks=f["volume"].chunks[:3], compression="gzip", compression_opts=9)
+    dset_swc_Frangi = f_out.create_dataset("/swc/Frangi", (), dtype='f')
+
+    # TODO export scale/filt if needed
+    # dset_filter_Frangi_magnitude = f_out.create_dataset("/filter/Frangi/magnitude", volume.shape[:3], dtype='f', chunks=f["volume"].chunks[:3], compression="gzip", compression_opts=9)
+    # dset_filter_Frangi_scale = f_out.create_dataset("/filter/Frangi/scale", volume.shape[:3], dtype='f', chunks=f["volume"].chunks[:3], compression="gzip", compression_opts=9)
 
     # for each branch, crop a box, run segmentation based on:
     # 1) frangi vesselness filter
@@ -59,8 +64,14 @@ if __name__ == '__main__':
     # 3) stat thresholding: TODO: diffusion is buggy, might be better to switch to a regularized version
     linkdata = []
     for ix, txt in enumerate(recon[:, :]):
-        start = np.asarray(recon[ix,2:5],np.int)
-        end = np.asarray(recon[ix+1,2:5],np.int)
+        print('{} out of {}'.format(ix,recon.shape[0]))
+        start_node = ix #  recon[ix,0]
+        end_node = recon[ix,6]-1 # 0 based indexing
+        if end_node < 0:
+            continue
+
+        start = np.asarray(recon[start_node,2:5],np.int)
+        end = np.asarray(recon[end_node,2:5],np.int)
 
         # vesselness convolution sigmas
         sigmas = np.array([0.5,1.0,1.5,2,2.5,3,5,7,10])
@@ -68,8 +79,11 @@ if __name__ == '__main__':
         # padding needs to be at least window_size/2*sigma
         padding = np.max(window_size*sigmas/2).__int__()
 
+        bbox_min_wo = np.min((start, end), axis=0)
+        bbox_max_wo = np.max((start, end), axis=0)
         bbox_min = np.min((start,end),axis=0)-padding
         bbox_max = np.max((start,end),axis=0)+padding+1 # add one to make python inclusive
+
         bbox_size = bbox_max-bbox_min
         start_ = start - bbox_min
         end_ = end-bbox_min
@@ -77,11 +91,12 @@ if __name__ == '__main__':
 
         # crop
         crop = volume[bbox_min[0]:bbox_max[0],bbox_min[1]:bbox_max[1],bbox_min[2]:bbox_max[2]]
+        crop[crop==0] = np.min(crop[crop>0]) # overwrites any missing voxel with patch minima
 
         ## fix line shifts
         # st = -9;en = 10;shift, shift_float = lnf.findShift(inputim[:,:inputim.shape[1]//2*2,:], st, en, False)
         ##
-        inputim = np.log(np.asarray(crop[:,:,:,0], np.float))
+        inputim = np.log(np.asarray(crop[:,:,:,0], np.float)) # add 1 to prevent /0 cases for log scaling
         inputim =(inputim-inputim.min())/(inputim.max()-inputim.min())
 
         ## FRANGI
@@ -136,10 +151,15 @@ if __name__ == '__main__':
         # sitk.Show(sitk.GetImageFromArray(np.swapaxes(filtresponse/np.max(filtresponse),2,0)))
 
         # paint segmentation result
-        dset_segmentation_AC[bbox_min[0]:bbox_max[0], bbox_min[1]:bbox_max[1], bbox_min[2]:bbox_max[2]] = segment.mask_ActiveContour
+        # dset_segmentation_AC[bbox_min[0]:bbox_max[0], bbox_min[1]:bbox_max[1], bbox_min[2]:bbox_max[2]] = segment.mask_ActiveContour
+        dset_segmentation_AC[bbox_min_wo[0]:bbox_min_wo[0], bbox_min_wo[1]:bbox_min_wo[1], bbox_min_wo[2]:bbox_min_wo[2]] = segment.mask_ActiveContour[padding:-padding,padding:-padding,padding:-padding]
 
-
-
+    f.close()
+    f_out.close()
+    # convert to tif
+    with h5py.File(cropped_h5_file_output, "r") as f:
+        dset_segmentation_AC = f['/segmentation/AC']
+        io.imsave(cropped_tif_file_output, np.swapaxes(dset_segmentation_AC,2,0))
 
 
     if 0:
