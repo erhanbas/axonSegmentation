@@ -151,8 +151,14 @@ if __name__ == '__main__':
         # sitk.Show(sitk.GetImageFromArray(np.swapaxes(filtresponse/np.max(filtresponse),2,0)))
 
         # paint segmentation result
-        # dset_segmentation_AC[bbox_min[0]:bbox_max[0], bbox_min[1]:bbox_max[1], bbox_min[2]:bbox_max[2]] = segment.mask_ActiveContour
-        dset_segmentation_AC[bbox_min_wo[0]:bbox_min_wo[0], bbox_min_wo[1]:bbox_min_wo[1], bbox_min_wo[2]:bbox_min_wo[2]] = segment.mask_ActiveContour[padding:-padding,padding:-padding,padding:-padding]
+        # patch wise write is buggy:
+        # dset_segmentation_AC[bbox_min[0]:bbox_max[0], bbox_min[1]:bbox_max[1], bbox_min[2]:bbox_max[2]] = segment.mask_ActiveContour # results in boundary artifacts
+        # dset_segmentation_AC[bbox_min_wo[0]:bbox_min_wo[0], bbox_min_wo[1]:bbox_min_wo[1], bbox_min_wo[2]:bbox_min_wo[2]] = segment.mask_ActiveContour[padding:-padding,padding:-padding,padding:-padding] # results in missing data
+        # location wise painting
+        xyz_signal = bbox_min[:,None] + np.where(segment.mask_ActiveContour)
+        for xyz in xyz_signal.transpose():
+            dset_segmentation_AC[tuple(xyz)] = 1
+
 
     f.close()
     f_out.close()
