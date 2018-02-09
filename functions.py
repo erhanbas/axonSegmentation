@@ -67,6 +67,18 @@ def circle_levelset(shape, center, sqradius, scalerow=1.0):
     u = np.float_(phi > 0)
     return u
 
+def getRadiusIndicies(radius):
+    radlist={}
+    for rad in radius:
+        if rad<1:
+            u=np.ones((1,1,1))
+        else:
+            grid = np.mgrid[list(map(slice, (2*rad+1,2*rad+1,2*rad+1)))].T - rad
+            phi = rad - np.sqrt(np.sum((grid.T) ** 2, 0))
+            u = np.float_(phi >= 0)
+        radlist[rad] = u
+    return radlist
+
 def boundingbox_levelset(shape, center, sqradius, scalerow=1.0):
     test=1
 

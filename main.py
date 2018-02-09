@@ -5,9 +5,8 @@ import matplotlib.pyplot as plt
 # import os
 # from scipy.spatial import distance as dist
 import h5py
+# importlib.reload(frangi)
 from frangi3d import frangi
-# from morphsnakes import tests
-# from morphsnakes import morphsnakes as morph
 import importlib
 import functions as func
 from skimage import exposure
@@ -21,7 +20,11 @@ import itertools
 import sys
 sys.path.insert(0, '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/lineScanFix')
 # import linefix as lnf
+from scipy.sparse import coo_matrix,csc_matrix
+from scipy.sparse import csr_matrix, find
 
+from scipy.sparse.csgraph import minimum_spanning_tree
+import networkx as nx
 
 import segment as seg
 import os
@@ -35,6 +38,7 @@ def test(volume,recon):
     io.imsave('./data/neuron_test.tif',np.swapaxes(volume[:,:,:,0],2,0))
 
 
+
 if __name__ == '__main__':
     # this is the main
     data_folder = '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/navigator/data'
@@ -43,26 +47,34 @@ if __name__ == '__main__':
     cropped_swc_file = os.path.join(data_folder,swc_name+'_cropped.swc')
     cropped_h5_file =  os.path.join(data_folder,swc_name+'_cropped.h5')
     cropped_h5_file_output =  os.path.join(data_folder,swc_name+'_cropped_segmented.h5')
-    cropped_tif_file_output =  os.path.join(data_folder,swc_name+'_cropped_segmented.tif')
+    AC_cropped_tif_file_output =  os.path.join(data_folder,swc_name+'_AC_cropped_segmented.tif')
+    Frangi_cropped_tif_file_output =  os.path.join(data_folder,swc_name+'_Frangi_cropped_segmented.tif')
 
     f = h5py.File(cropped_h5_file, "r")
     recon = f["reconstruction"]
     volume = f["volume"]
+    output_dims = volume.shape
 
     f_out = h5py.File(cropped_h5_file_output, "w")
     dset_segmentation_AC = f_out.create_dataset("/segmentation/AC", volume.shape[:3], dtype='uint8', chunks=f["volume"].chunks[:3], compression="gzip", compression_opts=9)
     dset_segmentation_Frangi = f_out.create_dataset("/segmentation/Frangi", volume.shape[:3], dtype='uint8', chunks=f["volume"].chunks[:3], compression="gzip", compression_opts=9)
-    dset_swc_Frangi = f_out.create_dataset("/swc/Frangi", (), dtype='f')
+    dset_swc_Frangi = f_out.create_dataset("/trace/trace", (), dtype='f')
 
     # TODO export scale/filt if needed
     # dset_filter_Frangi_magnitude = f_out.create_dataset("/filter/Frangi/magnitude", volume.shape[:3], dtype='f', chunks=f["volume"].chunks[:3], compression="gzip", compression_opts=9)
     # dset_filter_Frangi_scale = f_out.create_dataset("/filter/Frangi/scale", volume.shape[:3], dtype='f', chunks=f["volume"].chunks[:3], compression="gzip", compression_opts=9)
-
     # for each branch, crop a box, run segmentation based on:
     # 1) frangi vesselness filter
     # 2) active countours
     # 3) stat thresholding: TODO: diffusion is buggy, might be better to switch to a regularized version
+
     linkdata = []
+    sigmas = np.array([0.5, 1.0, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5])
+    window_size = 3
+
+    importlib.reload(func)
+    radius_list = func.getRadiusIndicies(radius=sigmas)
+    lookup_data={}
     for ix, txt in enumerate(recon[:, :]):
         print('{} out of {}'.format(ix,recon.shape[0]))
         start_node = ix #  recon[ix,0]
@@ -74,10 +86,8 @@ if __name__ == '__main__':
         end = np.asarray(recon[end_node,2:5],np.int)
 
         # vesselness convolution sigmas
-        sigmas = np.array([0.5,1.0,1.5,2,2.5,3,5,7,10])
-        window_size = 3
         # padding needs to be at least window_size/2*sigma
-        padding = np.max(window_size*sigmas/2).__int__()
+        padding = np.ceil(np.max(window_size*sigmas/2)).__int__()
 
         bbox_min_wo = np.min((start, end), axis=0)
         bbox_max_wo = np.max((start, end), axis=0)
@@ -100,7 +110,6 @@ if __name__ == '__main__':
         inputim =(inputim-inputim.min())/(inputim.max()-inputim.min())
 
         ## FRANGI
-        importlib.reload(frangi)
         filtresponse, scaleresponse =frangi.frangi(inputim, sigmas,window_size = window_size,
                                                    alpha=0.01, beta=1.5, frangi_c=2*np.std(inputim), black_vessels=False)
 
@@ -120,53 +129,128 @@ if __name__ == '__main__':
         path_array_indicies = np.ravel_multi_index(path_array.T,cost_array.shape)
 
         # frangi radius estimate around tracing
-        radius_estimate = scaleresponse.flat[path_array_indicies]
+        radius_estimate_around_trace = scaleresponse.flat[path_array_indicies]
+        # print(np.max(radius_estimate_around_trace))
 
         # fine tuned swc file
-        xyz_locations = path_array + bbox_min
+        xyz_trace_locations = path_array + bbox_min
+
+        # index ids for each location
+        inds = np.ravel_multi_index(xyz_trace_locations.T,output_dims[:3])
 
         # radius as 4th column
-        branch_data = np.concatenate((xyz_locations,radius_estimate[:,None]),axis=1)
+        branch_data = np.concatenate((xyz_trace_locations,radius_estimate_around_trace[:,None],inds[:,None]),axis=1)
 
-        # paint hdf5
-        # TODO: func.painth5: converts swc or link data to an image
+        for ii,ind in enumerate(inds):
+            lookup_data[ind] = branch_data[ii,:4]
 
         # store recon info
         linkdata.append(branch_data)
+        if 0: # paint functions
+            # paint hdf5: for each trace location, generate a ball with the given radius and paint into segmentation output
+            for xyzr in branch_data:
+                xyz=xyzr[:3]
+                r=xyzr[3]
+                mask = radius_list[r]
+                paintlocs = np.where(mask)-np.floor(r) + xyz[:,None]
+                for locs in paintlocs.transpose():
+                    dset_segmentation_Frangi[tuple(locs)] = 1
 
-        ## tune parameters
-        # func.swapparams()
+            ## segmentation based on active contours
+            if 1:
+                segment = seg.volumeSeg(filtresponse,path_array) # working
+            else: # use cost function to initialize segmentation
+                segment = seg.volumeSeg(inputim,path_array,cost_array=np.max(cost_array)-cost_array) # revert cost for positive active contour
 
-        ## segmentation based on active contours
-        importlib.reload(seg)
-        if 1:
-            segment = seg.volumeSeg(filtresponse,path_array) # working
-        else: # use cost function to initialize segmentation
-            segment = seg.volumeSeg(inputim,path_array,cost_array=np.max(cost_array)-cost_array) # revert cost for positive active contour
+            segment.runSeg()
+            # sitk.Show(sitk.GetImageFromArray(np.swapaxes(segment.mask_ActiveContour,2,0)))
+            # sitk.Show(sitk.GetImageFromArray(np.swapaxes(inputim,2,0)))
+            # sitk.Show(sitk.GetImageFromArray(np.swapaxes(filtresponse/np.max(filtresponse),2,0)))
 
-        segment.runSeg()
-        #
-        # sitk.Show(sitk.GetImageFromArray(np.swapaxes(segment.mask_ActiveContour,2,0)))
-        # sitk.Show(sitk.GetImageFromArray(np.swapaxes(inputim,2,0)))
-        # sitk.Show(sitk.GetImageFromArray(np.swapaxes(filtresponse/np.max(filtresponse),2,0)))
-
-        # paint segmentation result
-        # patch wise write is buggy:
-        # dset_segmentation_AC[bbox_min[0]:bbox_max[0], bbox_min[1]:bbox_max[1], bbox_min[2]:bbox_max[2]] = segment.mask_ActiveContour # results in boundary artifacts
-        # dset_segmentation_AC[bbox_min_wo[0]:bbox_min_wo[0], bbox_min_wo[1]:bbox_min_wo[1], bbox_min_wo[2]:bbox_min_wo[2]] = segment.mask_ActiveContour[padding:-padding,padding:-padding,padding:-padding] # results in missing data
-        # location wise painting
-        xyz_signal = bbox_min[:,None] + np.where(segment.mask_ActiveContour)
-        for xyz in xyz_signal.transpose():
-            dset_segmentation_AC[tuple(xyz)] = 1
+            # paint segmentation result
+            # patch wise write is buggy:
+            # dset_segmentation_AC[bbox_min[0]:bbox_max[0], bbox_min[1]:bbox_max[1], bbox_min[2]:bbox_max[2]] = segment.mask_ActiveContour # results in boundary artifacts
+            # dset_segmentation_AC[bbox_min_wo[0]:bbox_min_wo[0], bbox_min_wo[1]:bbox_min_wo[1], bbox_min_wo[2]:bbox_min_wo[2]] = segment.mask_ActiveContour[padding:-padding,padding:-padding,padding:-padding] # results in missing data
+            # location wise painting
+            xyz_signal = bbox_min[:,None] + np.where(segment.mask_ActiveContour)
+            for xyz in xyz_signal.transpose():
+                dset_segmentation_AC[tuple(xyz)] = 1
 
 
     f.close()
     f_out.close()
+    #########################################################
+    # convert sub to graph to get upscaled reconstruction
+    #########################################################
+    numsegments = len(linkdata)
+    linkdata_con = np.concatenate(linkdata,axis=0)
+    edges = []
+    radius_estimate_around_trace
+    for ix in range(numsegments):
+        edge1 = linkdata[ix][:-1,-1]
+        edge2 = linkdata[ix][1:,-1]
+        rad = (linkdata[ix][1:,-2]+linkdata[ix][:-1,-2])/2
+        edges.append(np.concatenate((edge1[:,None],edge2[:,None],rad[:,None]),axis=1))
+
+    edges = np.concatenate(edges,axis=0)
+    # [keepthese, ia, ic] = unique(edges(:, [1 2]));
+    # [subs(:, 1), subs(:, 2), subs(:, 3)] = ind2sub(outsiz([1 2 3]), keepthese);
+    # edges_ = reshape(ic, [], 2);
+    # weights_ = edges(ia, 3:end);
+
+    # in order to go back to original index: unique_edges[edges_reduced[0,0]]
+    unique_edges,unique_indicies,unique_inverse = np.unique(edges[:,:2], return_index=True,return_inverse=True)
+    edges_reduced = np.reshape(unique_inverse,(edges.shape[0],2))
+
+    # connectivity graph
+    dat = np.ones((edges_reduced.shape[0],1)).flatten()
+    e1 = edges_reduced[:,0]
+    e2 = edges_reduced[:,1]
+
+    sM = csr_matrix((dat,(e1,e2)), shape=(np.max(edges_reduced)+1,np.max(edges_reduced)+1))
+    # build shorthest spanning tree from seed
+    seed_location = edges_reduced[0,0]
+
+    nxsM = nx.from_scipy_sparse_matrix(sM)
+    # orderlist = nx.dfs_preorder_nodes(nxsM,seed_location)
+    # orderlist = np.array(list(orderlist))
+
+    # preds = nx.dfs_predecessors(nxsM,seed_location)
+    preds = nx.dfs_predecessors(nxsM)
+    preds_np = np.array(list(preds.items()))
+    pred_array = np.zeros((preds_np.max()+1,1)).flatten()
+    pred_array[preds_np[:,0]]=preds_np[:,1]
+
+    with open(os.path.join(data_folder,swc_name+'-upsampled.swc'),'w') as fswc:
+        for ipx,ip in enumerate(pred_array):
+            curr_node = lookup_data[unique_edges[ipx]]
+
+            if ipx ==0:
+                str = '{:.0f} {:.0f} {:.2f} {:.2f} {:.2f} {:.2f} {:.0f}\n'.format(ipx+1,1,curr_node[0],curr_node[1],curr_node[2],curr_node[3],-1)
+            else:
+                str = '{:.0f} {:.0f} {:.2f} {:.2f} {:.2f} {:.2f} {:.0f}\n'.format(ipx+1,1,curr_node[0],curr_node[1],curr_node[2],curr_node[3],ip+1)
+
+            fswc.write(str)
+
+
+    # test_im = volume[:,:,:100,0]
+    # nm = np.max(test_im,axis=2)
+    # plt.figure()
+    # plt.imshow(nm.T)
+    # T = nx.dfs_tree(nxsM, seed_location)
+    # for edT in sorted(T.edges(data=True)):
+    #     from_node = lookup_data[unique_edges[edT[0]]]
+    #     to_node = lookup_data[unique_edges[edT[1]]]
+    #     # draw en edge
+    #     plt.plot([from_node[0],to_node[0]],[from_node[1],to_node[1]])
+
     # convert to tif
     with h5py.File(cropped_h5_file_output, "r") as f:
         dset_segmentation_AC = f['/segmentation/AC']
-        io.imsave(cropped_tif_file_output, np.swapaxes(dset_segmentation_AC,2,0))
-
+        io.imsave(AC_cropped_tif_file_output, np.swapaxes(dset_segmentation_AC,2,0))
+    with h5py.File(cropped_h5_file_output, "r") as f:
+        dset_segmentation_AC = f['/segmentation/Frangi']
+        io.imsave(Frangi_cropped_tif_file_output, np.swapaxes(dset_segmentation_AC,2,0))
 
     if 0:
         f, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4)
