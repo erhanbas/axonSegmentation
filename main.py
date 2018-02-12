@@ -10,24 +10,23 @@ from frangi3d import frangi
 import importlib
 import functions as func
 from skimage import exposure
-from sklearn import feature_extraction as feat
 from skimage import graph as skig
+from skimage import io
+import sys
+sys.path.insert(0, '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/lineScanFix')
+from scipy.sparse import csr_matrix, find
+import networkx as nx
+import segment as seg
+import os
+
+from sklearn import feature_extraction as feat
 from scipy.sparse import csgraph as csg
 from sklearn.cluster import spectral_clustering
 import SimpleITK as sitk
-from skimage import io
 import itertools
-import sys
-sys.path.insert(0, '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/lineScanFix')
 # import linefix as lnf
 from scipy.sparse import coo_matrix,csc_matrix
-from scipy.sparse import csr_matrix, find
 
-from scipy.sparse.csgraph import minimum_spanning_tree
-import networkx as nx
-
-import segment as seg
-import os
 def test(volume,recon):
 # format(recon[iter, 0].__int__(), 1, txt[0], txt[1], txt[2], 1, recon[iter, 1].__int__()))
 
@@ -41,6 +40,7 @@ def test(volume,recon):
 
 if __name__ == '__main__':
     # this is the main
+    generate_output = False
     data_folder = '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/navigator/data'
     swc_name = '2017-11-17_G-017_Seg-1'
     swc_file = os.path.join(data_folder,swc_name+'.swc')
@@ -55,10 +55,11 @@ if __name__ == '__main__':
     volume = f["volume"]
     output_dims = volume.shape
 
-    f_out = h5py.File(cropped_h5_file_output, "w")
-    dset_segmentation_AC = f_out.create_dataset("/segmentation/AC", volume.shape[:3], dtype='uint8', chunks=f["volume"].chunks[:3], compression="gzip", compression_opts=9)
-    dset_segmentation_Frangi = f_out.create_dataset("/segmentation/Frangi", volume.shape[:3], dtype='uint8', chunks=f["volume"].chunks[:3], compression="gzip", compression_opts=9)
-    dset_swc_Frangi = f_out.create_dataset("/trace/trace", (), dtype='f')
+    if generate_output:
+        f_out = h5py.File(cropped_h5_file_output, "w")
+        dset_segmentation_AC = f_out.create_dataset("/segmentation/AC", volume.shape[:3], dtype='uint8', chunks=f["volume"].chunks[:3], compression="gzip", compression_opts=9)
+        dset_segmentation_Frangi = f_out.create_dataset("/segmentation/Frangi", volume.shape[:3], dtype='uint8', chunks=f["volume"].chunks[:3], compression="gzip", compression_opts=9)
+        dset_swc_Frangi = f_out.create_dataset("/trace/trace", (), dtype='f')
 
     # TODO export scale/filt if needed
     # dset_filter_Frangi_magnitude = f_out.create_dataset("/filter/Frangi/magnitude", volume.shape[:3], dtype='f', chunks=f["volume"].chunks[:3], compression="gzip", compression_opts=9)
@@ -72,7 +73,6 @@ if __name__ == '__main__':
     sigmas = np.array([0.5, 1.0, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5])
     window_size = 3
 
-    importlib.reload(func)
     radius_list = func.getRadiusIndicies(radius=sigmas)
     lookup_data={}
     for ix, txt in enumerate(recon[:, :]):
@@ -178,59 +178,22 @@ if __name__ == '__main__':
 
 
     f.close()
-    f_out.close()
-    #########################################################
-    # convert sub to graph to get upscaled reconstruction
-    #########################################################
-    numsegments = len(linkdata)
-    linkdata_con = np.concatenate(linkdata,axis=0)
-    edges = []
-    radius_estimate_around_trace
-    for ix in range(numsegments):
-        edge1 = linkdata[ix][:-1,-1]
-        edge2 = linkdata[ix][1:,-1]
-        rad = (linkdata[ix][1:,-2]+linkdata[ix][:-1,-2])/2
-        edges.append(np.concatenate((edge1[:,None],edge2[:,None],rad[:,None]),axis=1))
+    if generate_output:
+        f_out.close()
 
-    edges = np.concatenate(edges,axis=0)
-    # [keepthese, ia, ic] = unique(edges(:, [1 2]));
-    # [subs(:, 1), subs(:, 2), subs(:, 3)] = ind2sub(outsiz([1 2 3]), keepthese);
-    # edges_ = reshape(ic, [], 2);
-    # weights_ = edges(ia, 3:end);
+    pred_array = func.link2swc(linkdata)
 
-    # in order to go back to original index: unique_edges[edges_reduced[0,0]]
-    unique_edges,unique_indicies,unique_inverse = np.unique(edges[:,:2], return_index=True,return_inverse=True)
-    edges_reduced = np.reshape(unique_inverse,(edges.shape[0],2))
 
-    # connectivity graph
-    dat = np.ones((edges_reduced.shape[0],1)).flatten()
-    e1 = edges_reduced[:,0]
-    e2 = edges_reduced[:,1]
+    # with open(os.path.join(data_folder,swc_name+'-upsampled.swc'),'w') as fswc:
+    #     for ipx,ip in enumerate(pred_array):
+    #         curr_node = lookup_data[unique_edges[ipx]]
+    #
+    #         if ipx ==0:
+    #             str = '{:.0f} {:.0f} {:.2f} {:.2f} {:.2f} {:.2f} {:.0f}\n'.format(ipx+1,1,curr_node[0],curr_node[1],curr_node[2],curr_node[3],-1)
+    #         else:
+    #             str = '{:.0f} {:.0f} {:.2f} {:.2f} {:.2f} {:.2f} {:.0f}\n'.format(ipx+1,1,curr_node[0],curr_node[1],curr_node[2],curr_node[3],ip+1)
 
-    sM = csr_matrix((dat,(e1,e2)), shape=(np.max(edges_reduced)+1,np.max(edges_reduced)+1))
-    # build shorthest spanning tree from seed
-    seed_location = edges_reduced[0,0]
 
-    nxsM = nx.from_scipy_sparse_matrix(sM)
-    # orderlist = nx.dfs_preorder_nodes(nxsM,seed_location)
-    # orderlist = np.array(list(orderlist))
-
-    # preds = nx.dfs_predecessors(nxsM,seed_location)
-    preds = nx.dfs_predecessors(nxsM)
-    preds_np = np.array(list(preds.items()))
-    pred_array = np.zeros((preds_np.max()+1,1)).flatten()
-    pred_array[preds_np[:,0]]=preds_np[:,1]
-
-    with open(os.path.join(data_folder,swc_name+'-upsampled.swc'),'w') as fswc:
-        for ipx,ip in enumerate(pred_array):
-            curr_node = lookup_data[unique_edges[ipx]]
-
-            if ipx ==0:
-                str = '{:.0f} {:.0f} {:.2f} {:.2f} {:.2f} {:.2f} {:.0f}\n'.format(ipx+1,1,curr_node[0],curr_node[1],curr_node[2],curr_node[3],-1)
-            else:
-                str = '{:.0f} {:.0f} {:.2f} {:.2f} {:.2f} {:.2f} {:.0f}\n'.format(ipx+1,1,curr_node[0],curr_node[1],curr_node[2],curr_node[3],ip+1)
-
-            fswc.write(str)
 
 
     # test_im = volume[:,:,:100,0]
@@ -244,13 +207,22 @@ if __name__ == '__main__':
     #     # draw en edge
     #     plt.plot([from_node[0],to_node[0]],[from_node[1],to_node[1]])
 
-    # convert to tif
-    with h5py.File(cropped_h5_file_output, "r") as f:
-        dset_segmentation_AC = f['/segmentation/AC']
-        io.imsave(AC_cropped_tif_file_output, np.swapaxes(dset_segmentation_AC,2,0))
-    with h5py.File(cropped_h5_file_output, "r") as f:
-        dset_segmentation_AC = f['/segmentation/Frangi']
-        io.imsave(Frangi_cropped_tif_file_output, np.swapaxes(dset_segmentation_AC,2,0))
+    # #convert to tif
+    # with h5py.File(cropped_h5_file_output, "r") as f:
+    #     dset_segmentation_AC = f['/segmentation/AC']
+    #     io.imsave(AC_cropped_tif_file_output, np.swapaxes(dset_segmentation_AC,2,0))
+    # with h5py.File(cropped_h5_file_output, "r") as f:
+    #     dset_segmentation_AC = f['/segmentation/Frangi']
+    #     io.imsave(Frangi_cropped_tif_file_output, np.swapaxes(dset_segmentation_AC,2,0))
+
+    # # convert 3D stack to octree format
+    # experiment_folder = os.path.join(data_folder, 'JW', swc_name)
+    # number_of_level = 3
+    # target_leaf_size = np.asarray(np.ceil(np.array(output_dims[:3]) / 2 ** number_of_level), np.int)
+    # importlib.reload(func)
+    # func.convert2JW(cropped_h5_file,experiment_folder=experiment_folder,number_of_level=number_of_level)
+    # func.mergeJW(experiment_folder,target_leaf_size) # reads folders and generates down sampled version
+
 
     if 0:
         f, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4)
