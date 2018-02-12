@@ -9,7 +9,12 @@ from skimage.transform import resize
 from scipy.sparse import csr_matrix, find
 import networkx as nx
 
-def link2pred(linkdata):
+def array2swc(swcfile,swcdata):
+    with open(swcfile,'w') as fswc:
+        for iter,txt in enumerate(swcdata[:,:]):
+            fswc.write('{:.0f} {:.0f} {:.2f} {:.2f} {:.2f} {:.2f} {:.0f}\n'.format(txt[0],txt[1],txt[2],txt[3],txt[4],txt[5],txt[6]))
+
+def link2pred(linkdata,lookup_data):
     #########################################################
     # convert sub to graph to get upscaled reconstruction
     #########################################################
@@ -40,67 +45,125 @@ def link2pred(linkdata):
 
     sM = csr_matrix((dat,(e1,e2)), shape=(np.max(edges_reduced)+1,np.max(edges_reduced)+1))
     # build shorthest spanning tree from seed
-    seed_location = edges_reduced[0,0]
+    seed_index = edges_reduced[0,0]
 
     nxsM = nx.from_scipy_sparse_matrix(sM)
-    # orderlist = nx.dfs_preorder_nodes(nxsM,seed_location)
-    # orderlist = np.array(list(orderlist))
 
-    # preds = nx.dfs_predecessors(nxsM,seed_location)
-    preds = nx.dfs_predecessors(nxsM)
-    preds_np = np.array(list(preds.items()))
-    pred_array = np.zeros((preds_np.max()+1,1)).flatten()
-    pred_array[preds_np[:,0]]=preds_np[:,1]
+    preds = nx.dfs_predecessors(nxsM,seed_index)
+    orderlist = nx.dfs_preorder_nodes(nxsM, seed_index)
+    orderlist = np.array(list(orderlist))
+    seed_vals = lookup_data[unique_edges[seed_index]]
 
-    return pred_array
+    swc_data=[]
+    swc_data.append(np.array([1,1,seed_vals[0],seed_vals[1],seed_vals[2],seed_vals[3],1]))
+    swc_list={}
+    # iterate over orderlist (set first column based on this)
+    for ix, idx_trace in enumerate(orderlist):
+        swc_list[idx_trace] = ix + 1
+        if ix==0:
+            target = -1
+        else:
+            target = swc_list[preds[idx_trace]]
 
-def painth5():
-    2
+        loc_xyzr = lookup_data[unique_edges[idx_trace]]
+        swc_data.append([ix+1,1,loc_xyzr[0],loc_xyzr[1],loc_xyzr[2],loc_xyzr[3],target])
 
-def createBinaryMask(size,point1,point2):
-    # creates a box around points
-    it=1
-def convert2JW(h5file,experiment_folder= './data/JW',number_of_level=3):
-    with h5py.File(h5file, "r") as f:
-        volume = f["volume"]
-        output_dims = volume.shape
-        bit_multiplication_array = 2**np.arange(number_of_level)
-        target_leaf_size = np.asarray(np.ceil(np.array(output_dims[:3]) / 2 ** number_of_level), np.int)
-        padded_size = target_leaf_size*2**number_of_level
-        folder_path = []
-        range_values = [np.asarray(np.arange(0, padded_size[ii], target_leaf_size[ii]),dtype=np.int).tolist() for ii in range(3)]
-        for ix,ref in enumerate(list(itertools.product(*range_values))):
-            bb_end = np.asarray(np.min((ref+target_leaf_size,np.array(output_dims[:3])),axis=0),dtype=np.int)
-            patch_ = volume[ref[0]:bb_end[0], ref[1]:bb_end[1], ref[2]:bb_end[2], :]
+    return swc_data
 
-            if np.any(bb_end-np.array(ref) < target_leaf_size):
-                # pad
-                patch = np.zeros(np.append(target_leaf_size,2),dtype=np.uint16)
-                patch[:patch_.shape[0], :patch_.shape[1], :patch_.shape[2],:] = patch_
-            else:
-                patch = patch_
+class Convert2JW(object):
+    def __init__(self,h5file,experiment_folder,number_of_level=3):
+        self.number_of_level = number_of_level
+        self.h5file = h5file
+        self.experiment_folder= experiment_folder
 
-            # if patch size is smaller than full volume size pad zeros
-            folder_inds = np.array(np.unravel_index(ix,([8,8,8])))
-            folder_inds = folder_inds + 1
-            patch_folder_path = []
-            for im in np.arange(number_of_level,0,-1):
-                bits = folder_inds>2**(im-1)
-                # bit 2 num
-                patch_folder_path.append(1+np.sum(bits*bit_multiplication_array))
-                folder_inds = folder_inds-2**(im-1)*bits
+    def convert2JW(self):
+        h5file = self.h5file
+        number_of_level = self.number_of_level
+        experiment_folder = self.experiment_folder
+        with h5py.File(h5file, "r") as f:
+            volume = f["volume"]
+            output_dims = volume.shape
+            bit_multiplication_array = 2**np.arange(number_of_level)
+            target_leaf_size = np.asarray(np.ceil(np.array(output_dims[:3]) / 2 ** number_of_level), np.int)
+            padded_size = target_leaf_size*2**number_of_level
+            range_values = [np.asarray(np.arange(0, padded_size[ii], target_leaf_size[ii]),dtype=np.int).tolist() for ii in range(3)]
+            for ix,ref in enumerate(list(itertools.product(*range_values))):
+                bb_end = np.asarray(np.min((ref+target_leaf_size,np.array(output_dims[:3])),axis=0),dtype=np.int)
+                patch_ = volume[ref[0]:bb_end[0], ref[1]:bb_end[1], ref[2]:bb_end[2], :]
 
-            # create folder
-            outfolder = os.path.join(experiment_folder,'/'.join(str(pp) for pp in patch_folder_path))
-            if ~np.any(patch):
-                continue
+                if np.any(bb_end-np.array(ref) < target_leaf_size):
+                    # pad
+                    patch = np.zeros(np.append(target_leaf_size,2),dtype=np.uint16)
+                    patch[:patch_.shape[0], :patch_.shape[1], :patch_.shape[2],:] = patch_
+                else:
+                    patch = patch_
 
-            if not os.path.exists(outfolder):
-                os.makedirs(outfolder)
-            print(outfolder)
-            for ichannel in range(2):
-                outfile = os.path.join(outfolder,'default.'+str(ichannel)+'.tif')
-                io.imsave(outfile, np.swapaxes(patch[:,:,:,ichannel], 2, 0))
+                # if patch size is smaller than full volume size pad zeros
+                folder_inds = np.array(np.unravel_index(ix,([8,8,8])))
+                folder_inds = folder_inds + 1
+                patch_folder_path = []
+                for im in np.arange(number_of_level,0,-1):
+                    bits = folder_inds>2**(im-1)
+                    # bit 2 num
+                    patch_folder_path.append(1+np.sum(bits*bit_multiplication_array))
+                    folder_inds = folder_inds-2**(im-1)*bits
+
+                # create folder
+                outfolder = os.path.join(experiment_folder,'/'.join(str(pp) for pp in patch_folder_path))
+                if ~np.any(patch):
+                    continue
+
+                if not os.path.exists(outfolder):
+                    os.makedirs(outfolder)
+                print(outfolder)
+                for ichannel in range(2):
+                    outfile = os.path.join(outfolder,'default.'+str(ichannel)+'.tif')
+                    io.imsave(outfile, np.swapaxes(patch[:,:,:,ichannel], 2, 0))
+
+    def create_transform_file(self):
+        experiment_folder = self.experiment_folder
+        number_of_level = self.number_of_level
+        # create transform file
+        transform_file = os.path.join(experiment_folder,'transform.txt')
+        with open(transform_file, 'w') as ft:
+            ft.write('ox: {:04.0f}\n'.format(0))
+            ft.write('oy: {:04.0f}\n'.format(0))
+            ft.write('oz: {:04.0f}\n'.format(0))
+            ft.write('sx: {:.0f}\n'.format(2**number_of_level*1000))
+            ft.write('sy: {:.0f}\n'.format(2**number_of_level*1000))
+            ft.write('sz: {:.0f}\n'.format(2**number_of_level*1000))
+            ft.write('nl: {:.0f}\n'.format(number_of_level+1))
+
+    def create_yml_file(self):
+        yml_file = os.path.join(self.experiment_folder,'tilebase.cache.yml')
+
+# path: / groups / mousebrainmicro / mousebrainmicro / from_tier2 / data / 2016 - 07 - 18 / Data
+# tiles:
+# - path: / 2016 - 07 - 18 / 00 / 00011
+# aabb:
+# ori: [71096420, 14983530, 27557100]
+# shape: [359797, 471332, 230250]
+# shape:
+# type: u16
+# dims: [1024, 1536, 251, 2]
+# transform: [-327.8191111976614138, -1.8150201278223164, 90.8861906279815912, 0.0, 71433286.72678135,
+#             1.6704081577471330, -296.7723192997518140, -65.5223388677545557, 0.0, 15454439.42699346,
+#             0.2156862745107648, -0.0522193211506079, 1000.0453608247521515, 0.0, 27542029.10309277,
+#             0.0, 0.0, 0.0, 1.0, 0.0, 0.0, -0.0, 0.0, 0.0, 1.0]
+#
+# - path: / 2016 - 07 - 18 / 00 / 00012
+# aabb:
+# ori: [71369020, 14983445, 27557100]
+# shape: [359814, 471417, 230250]
+# shape:
+# type: u16
+# dims: [1024, 1536, 251, 2]
+# transform: [-327.7569769949334955, -1.8177995180302970, 91.8069558278166369, 0.0, 71705838.96131170,
+#             1.8725156838320662, -296.7851609892611009, -65.8347584354735460, 0.0, 15454352.36627623,
+#             0.3725490196075887, -0.1305483028675221, 997.5958762886871227, 0.0, 27542057.53608246,
+#             0.0, 0.0, 0.0, 1.0, 0.0, 0.0, -0.0, 0.0, 0.0, 1.0]
+
+
 def mergeJW(experiment_folder,leaf_size,number_of_level=3):
     # reads an octant, down samples it and save a tif file
     # create all paths from depth-1 to 0
