@@ -3,8 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="343597f9-e5a6-486e-b2b9-c9e9b53d5b9a" name="Default" comment="">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/functions.py" afterPath="$PROJECT_DIR$/functions.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/main.py" afterPath="$PROJECT_DIR$/main.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -20,8 +18,8 @@
           <file leaf-file-name="main.py" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/main.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="265">
-                  <caret line="93" column="0" lean-forward="false" selection-start-line="91" selection-start-column="0" selection-end-line="93" selection-end-column="0" />
+                <state relative-caret-position="529">
+                  <caret line="105" column="0" lean-forward="true" selection-start-line="105" selection-start-column="0" selection-end-line="105" selection-end-column="0" />
                   <folding>
                     <element signature="e#14#32#0" expanded="true" />
                     <element signature="e#7574#9451#0" expanded="false" />
@@ -95,7 +93,7 @@
           <file leaf-file-name="functions.py" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/functions.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="484">
+                <state relative-caret-position="-374">
                   <caret line="24" column="33" lean-forward="true" selection-start-line="24" selection-start-column="33" selection-end-line="24" selection-end-column="33" />
                   <folding>
                     <element signature="e#0#45#0" expanded="true" />
@@ -355,7 +353,14 @@
       <option name="project" value="LOCAL" />
       <updated>1518459662883</updated>
     </task>
-    <option name="localTasksCounter" value="14" />
+    <task id="LOCAL-00014" summary="fixed swc shift bug, &#10;there is mismatch with JW as there is a bug in JW that causes rounding errors&#10;added JW class into functions. that creates octree format for output and transform file &#10;cleaned up main code">
+      <created>1518473897014</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1518473897014</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="TodoView">
@@ -406,7 +411,8 @@
     <MESSAGE value="added for loop over signal location list to create segmentation h5" />
     <MESSAGE value="added frangi image painting and export functions&#10;added graph algorithms to extract tree and export to swc" />
     <MESSAGE value="moved swc generation into functions file&#10;added JW support: octree output&#10;TODO: swc import is buggy" />
-    <option name="LAST_COMMIT_MESSAGE" value="moved swc generation into functions file&#10;added JW support: octree output&#10;TODO: swc import is buggy" />
+    <MESSAGE value="fixed swc shift bug, &#10;there is mismatch with JW as there is a bug in JW that causes rounding errors&#10;added JW class into functions. that creates octree format for output and transform file &#10;cleaned up main code" />
+    <option name="LAST_COMMIT_MESSAGE" value="fixed swc shift bug, &#10;there is mismatch with JW as there is a bug in JW that causes rounding errors&#10;added JW class into functions. that creates octree format for output and transform file &#10;cleaned up main code" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -848,8 +854,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/main.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="265">
-          <caret line="93" column="0" lean-forward="false" selection-start-line="91" selection-start-column="0" selection-end-line="93" selection-end-column="0" />
+        <state relative-caret-position="529">
+          <caret line="105" column="0" lean-forward="true" selection-start-line="105" selection-start-column="0" selection-end-line="105" selection-end-column="0" />
           <folding>
             <element signature="e#14#32#0" expanded="true" />
             <element signature="e#7574#9451#0" expanded="false" />
@@ -860,7 +866,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/functions.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="484">
+        <state relative-caret-position="-374">
           <caret line="24" column="33" lean-forward="true" selection-start-line="24" selection-start-column="33" selection-end-line="24" selection-end-column="33" />
           <folding>
             <element signature="e#0#45#0" expanded="true" />
