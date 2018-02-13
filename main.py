@@ -88,8 +88,6 @@ if __name__ == '__main__':
         radius_list = func.getRadiusIndicies(radius=sigmas)
 
         for ix, txt in enumerate(recon[:, :]):
-            # if ix > 1:
-            #     break
             print('{} out of {}'.format(ix,recon.shape[0]))
             start_node = ix #  recon[ix,0]
             end_node = recon[ix,6]-1 # 0 based indexing
@@ -185,11 +183,7 @@ if __name__ == '__main__':
                 # sitk.Show(sitk.GetImageFromArray(np.swapaxes(inputim,2,0)))
                 # sitk.Show(sitk.GetImageFromArray(np.swapaxes(filtresponse/np.max(filtresponse),2,0)))
 
-                # paint segmentation result
-                # patch wise write is buggy:
-                # dset_segmentation_AC[bbox_min[0]:bbox_max[0], bbox_min[1]:bbox_max[1], bbox_min[2]:bbox_max[2]] = segment.mask_ActiveContour # results in boundary artifacts
-                # dset_segmentation_AC[bbox_min_wo[0]:bbox_min_wo[0], bbox_min_wo[1]:bbox_min_wo[1], bbox_min_wo[2]:bbox_min_wo[2]] = segment.mask_ActiveContour[padding:-padding,padding:-padding,padding:-padding] # results in missing data
-                # location wise painting
+                # patch wise write is buggy, so location wise painting
                 xyz_signal = bbox_min[:,None] + np.where(segment.mask_ActiveContour)
                 for xyz in xyz_signal.transpose():
                     dset_segmentation_AC[tuple(xyz)] = 1
@@ -197,27 +191,6 @@ if __name__ == '__main__':
         swc_data = np.array(func.link2pred(linkdata,lookup_data))
         func.array2swc(swcfile=swc_output_file, swcdata=swc_data)
         if generate_output:
-            dset_swc_Frangi = f_out.create_dataset("/trace/trace", (), dtype='f')
-            dset_swc_Frangi[:] = swc_data
+            dset_swc_Frangi = f_out.create_dataset("/trace/trace", data=swc_data, dtype='f')
             f_out.close()
-
-
-        # if create_JW_workspace:
-        #     # convert 3D stack to octree format
-        #     upsampled_swc_out_file = os.path.join(experiment_folder,swc_name+'_upsampled.swc')
-        #     target_leaf_size = np.asarray(np.ceil(np.array(output_dims[:3]) / 2 ** number_of_level), np.int)
-        #     importlib.reload(func)
-        #     converter = func.Convert2JW(input_h5_file,experiment_folder,number_of_level=number_of_level)
-        #
-        #     func.convert2JW(input_h5_file,experiment_folder=experiment_folder,number_of_level=number_of_level)
-        #     func.mergeJW(experiment_folder,target_leaf_size) # reads folders and generates down sampled version
-        #     func.array2swc(swcfile=upsampled_swc_out_file, swcdata=swc_data)
-
-        # #convert to tif
-        # with h5py.File(cropped_h5_file_output, "r") as f:
-        #     dset_segmentation_AC = f['/segmentation/AC']
-        #     io.imsave(AC_cropped_tif_file_output, np.swapaxes(dset_segmentation_AC,2,0))
-        # with h5py.File(cropped_h5_file_output, "r") as f:
-        #     dset_segmentation_AC = f['/segmentation/Frangi']
-        #     io.imsave(Frangi_cropped_tif_file_output, np.swapaxes(dset_segmentation_AC,2,0))
 
