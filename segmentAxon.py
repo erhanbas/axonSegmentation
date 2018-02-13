@@ -1,63 +1,56 @@
-# import util
+import os
+import sys, getopt
 import numpy as np
-import matplotlib.pyplot as plt
-# import improc
-# import os
-# from scipy.spatial import distance as dist
 import h5py
-# importlib.reload(frangi)
 from frangi3d import frangi
 import importlib
 import functions as func
-from skimage import exposure
 from skimage import graph as skig
-from skimage import io
-from scipy.ndimage.filters import median_filter, gaussian_filter1d
-import sys
-sys.path.insert(0, '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/lineScanFix')
-from scipy.sparse import csr_matrix, find
-import networkx as nx
+from scipy.ndimage.filters import median_filter,minimum_filter
+# sys.path.insert(0, '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/lineScanFix')
 import segment as seg
-import os
 
-from sklearn import feature_extraction as feat
-from scipy.sparse import csgraph as csg
-from sklearn.cluster import spectral_clustering
+# need it for debug/viz
 import SimpleITK as sitk
-import itertools
-# import linefix as lnf
-from scipy.sparse import coo_matrix,csc_matrix
+import matplotlib.pyplot as plt
 
-# def test(volume,recon):
-# # format(recon[iter, 0].__int__(), 1, txt[0], txt[1], txt[2], 1, recon[iter, 1].__int__()))
-#
-#     with open('./data/neuron_test-1.swc','w') as fswc:
-#         for iter,txt in enumerate(recon[:,:]):
-#             fswc.write('{:.0f} {:.0f} {:.2f} {:.2f} {:.2f} {:.2f} {:.0f}\n'.format(txt[0],txt[1],txt[2]-1,txt[3]-1,txt[4]-1,txt[5],txt[6]))
-#
-#     io.imsave('./data/neuron_test.tif',np.swapaxes(volume[:,:,:,0],2,0))
-
-if __name__ == '__main__':
-    # this is the main
-
-    #TODO:
-    # MOVE JW creation to navigator
-    #
-
-
+def main(argv):
     generate_output = True
-    create_JW_workspace = True
+    input_h5_file = '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/navigator/data/2017-11-17_G-017_Seg-1/2017-11-17_G-017_Seg-1-cropped.h5'
+    output_folder = '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/navigator/data/2017-11-17_G-017_Seg-1/'
+    try:
+        opts, args = getopt.getopt(argv,"hi:o:",["input_h5_file=","output_folder="])
+    except getopt.GetoptError:
+        print('segmentAxon.py -i <input_h5_file> -o <output_folder>')
+        sys.exit(2)
+    for opt, arg in opts:
+        print('opt:', opt,'arg:', arg)
+        if opt == '-h':
+            print('segmentAxon.py -i <input_h5_file> -o <output_folder>')
+            sys.exit()
+        elif opt in ("-i", "--input_h5_file"):
+            input_h5_file = arg
+        elif opt in ("-o", "--output_folder"):
+            output_folder = arg
 
-    swc_name = '2017-11-17_G-017_Seg-1'
-    data_folder = os.path.join('/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/navigator/data/',swc_name)
-    input_h5_file = os.path.join(data_folder,swc_name+'-cropped.h5') # has both data end recon
+    print('SWCFILE   :', input_h5_file)
+    print('OUTPUT    :', output_folder)
 
-    output_folder = data_folder
-    segmentation_output_h5_file =  os.path.join(output_folder,swc_name+'_cropped_segmented.h5')
-    AC_output_tif_file =  os.path.join(data_folder,swc_name+'_AC_cropped_segmented.tif')
-    Frangi_output_tif_file =  os.path.join(data_folder,swc_name+'_Frangi_cropped_segmented.tif')
+    # swc_name = '2017-11-17_G-017_Seg-1'
+    # data_folder = os.path.join('/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/navigator/data/',swc_name)
 
-    swc_output_file =  os.path.join(data_folder,swc_name+'-volume.swc')
+    inputfolder,h5_name_w_ext = os.path.split(input_h5_file)
+    file_name,_ = h5_name_w_ext.split(os.extsep)
+
+    segmentation_output_h5_file = os.path.join(output_folder,file_name+'_segmented.h5')
+    swc_output_file = os.path.join(output_folder,file_name+'_segmented.swc')
+
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    # AC_output_tif_file =  os.path.join(data_folder,swc_name+'_AC_cropped_segmented.tif')
+    # Frangi_output_tif_file =  os.path.join(data_folder,swc_name+'_Frangi_cropped_segmented.tif')
+
 
     # TODO export scale/filt if needed
     # dset_filter_Frangi_magnitude = f_out.create_dataset("/filter/Frangi/magnitude", volume.shape[:3], dtype='f', chunks=f["volume"].chunks[:3], compression="gzip", compression_opts=9)
@@ -81,7 +74,6 @@ if __name__ == '__main__':
                                                             compression_opts=9)
 
         lookup_data={} # keeps track of indicies, subs and radius
-        linkdata = []
         sigmas = np.array([0.5, 1.0, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5])
         linkdata = []
         window_size = 3
@@ -125,12 +117,14 @@ if __name__ == '__main__':
             filtresponse, scaleresponse =frangi.frangi(inputim, sigmas,window_size = window_size,
                                                        alpha=0.01, beta=1.5, frangi_c=2*np.std(inputim), black_vessels=False)
 
+
             # sitk.Show(sitk.GetImageFromArray(np.swapaxes(inputim,2,0)))
             # sitk.Show(sitk.GetImageFromArray(np.swapaxes(filtresponse/np.max(filtresponse),2,0)))
             # sitk.Show(sitk.GetImageFromArray(np.swapaxes(scaleresponse,2,0)))
 
             # cost: high intensity low scale
-            cost_array = scaleresponse/(0.001+filtresponse)
+            # filter out scale response for local radius variations:
+            cost_array = minimum_filter(scaleresponse,2)/(0.001+filtresponse)
             cost_array[cost_array>100]=100
 
             # shortest path based on cost_array
@@ -148,6 +142,10 @@ if __name__ == '__main__':
 
             # fine tuned swc file
             xyz_trace_locations = path_array + bbox_min
+
+            # plt.figure()
+            # plt.imshow(np.max(filtresponse**.05,axis=2).T)
+            # plt.plot(path_array[:,0],path_array[:,1])
 
             # index ids for each location
             inds = np.ravel_multi_index(xyz_trace_locations.T,output_dims[:3])
@@ -194,3 +192,5 @@ if __name__ == '__main__':
             dset_swc_Frangi = f_out.create_dataset("/trace/trace", data=swc_data, dtype='f')
             f_out.close()
 
+if __name__ == "__main__":
+   main(sys.argv[1:])

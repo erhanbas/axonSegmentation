@@ -2,8 +2,13 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="343597f9-e5a6-486e-b2b9-c9e9b53d5b9a" name="Default" comment="">
+      <change type="DELETED" beforePath="$PROJECT_DIR$/data/neuron_test.hdf5" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/data/test.hdf5" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/floodfill.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/seg.py" afterPath="" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/main.py" afterPath="$PROJECT_DIR$/segmentAxon.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/main.py" afterPath="$PROJECT_DIR$/main.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/functions.py" afterPath="$PROJECT_DIR$/functions.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -14,14 +19,52 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="450">
-      <file leaf-file-name="main.py" pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/main.py">
+      <file leaf-file-name="segmentAxon.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/segmentAxon.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-1364">
+              <caret line="19" column="109" lean-forward="false" selection-start-line="19" selection-start-column="109" selection-end-line="19" selection-end-column="109" />
+              <folding>
+                <element signature="e#0#9#0" expanded="true" />
+                <element signature="e#1870#1956#0" expanded="false" />
+                <marker date="1518561308843" expanded="true" signature="5557:5810" ph="..." />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="myshow.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/myshow.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="136">
+              <caret line="61" column="14" lean-forward="false" selection-start-line="61" selection-start-column="14" selection-end-line="61" selection-end-column="14" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="segment.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/segment.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="820">
+              <caret line="123" column="22" lean-forward="false" selection-start-line="123" selection-start-column="14" selection-end-line="123" selection-end-column="22" />
+              <folding>
+                <element signature="e#0#31#0" expanded="true" />
+                <element signature="e#685#1652#0" expanded="false" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="functions.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/functions.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="270">
-              <caret line="84" column="60" lean-forward="false" selection-start-line="84" selection-start-column="60" selection-end-line="84" selection-end-column="60" />
+              <caret line="152" column="20" lean-forward="true" selection-start-line="152" selection-start-column="20" selection-end-line="152" selection-end-column="20" />
               <folding>
-                <element signature="e#14#32#0" expanded="true" />
-                <element signature="e#841#866#0" expanded="false" />
+                <element signature="e#0#45#0" expanded="true" />
+                <element signature="e#426#483#0" expanded="false" />
+                <element signature="e#2504#2523#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -38,9 +81,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>Show</find>
-      <find>recon</find>
-      <find>inputimage</find>
       <find>roi</find>
       <find>dilate</find>
       <find>path_array_indicies</find>
@@ -68,6 +108,9 @@
       <find>input_swc_file</find>
       <find>leaf_shape</find>
       <find>dset_swc_Frangi</find>
+      <find>smorph</find>
+      <find>myshow</find>
+      <find>myshow3d</find>
     </findStrings>
     <replaceStrings>
       <replace>input_swc_file</replace>
@@ -86,15 +129,16 @@
         <option value="$PROJECT_DIR$/.gitignore" />
         <option value="$PROJECT_DIR$/frangi3d/frangi.py" />
         <option value="$PROJECT_DIR$/segment.py" />
-        <option value="$PROJECT_DIR$/functions.py" />
         <option value="$PROJECT_DIR$/main.py" />
+        <option value="$PROJECT_DIR$/functions.py" />
+        <option value="$PROJECT_DIR$/segmentAxon.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="1846" />
+    <option name="x" value="1760" />
     <option name="y" value="24" />
-    <option name="width" value="1594" />
+    <option name="width" value="1680" />
     <option name="height" value="1416" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
@@ -113,7 +157,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scratches" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -124,13 +167,14 @@
             <path>
               <item name="axonSegmentation" type="b2602c69:ProjectViewProjectNode" />
               <item name="axonSegmentation" type="462c0819:PsiDirectoryNode" />
-              <item name="data" type="462c0819:PsiDirectoryNode" />
+              <item name="testt" type="462c0819:PsiDirectoryNode" />
             </path>
           </expand>
           <select />
         </subPane>
       </pane>
       <pane id="Scope" />
+      <pane id="Scratches" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -162,7 +206,7 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <module name="axonSegmentation" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/segmentAxon.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -299,7 +343,14 @@
       <option name="project" value="LOCAL" />
       <updated>1518544914990</updated>
     </task>
-    <option name="localTasksCounter" value="17" />
+    <task id="LOCAL-00017" summary="cleaned up the code, fixed scale bug, tested for large runs">
+      <created>1518545590064</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1518545590064</updated>
+    </task>
+    <option name="localTasksCounter" value="18" />
     <servers />
   </component>
   <component name="TodoView">
@@ -315,12 +366,13 @@
     <frame x="81" y="-4" width="3359" height="1444" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.09948438" sideWeight="0.5" order="1" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.1003943" sideWeight="0.5" order="1" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3294025" sideWeight="0.49651197" order="10" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.244373" sideWeight="0.46800122" order="0" side_tool="true" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3356918" sideWeight="0.47519583" order="6" side_tool="false" content_ui="tabs" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33490565" sideWeight="0.47519583" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3294025" sideWeight="0.49772522" order="1" side_tool="false" content_ui="tabs" />
-      <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.3294025" sideWeight="0.4822566" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3294025" sideWeight="0.4822566" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.24962087" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3294025" sideWeight="0.49651197" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.38443395" sideWeight="0.5319988" order="7" side_tool="false" content_ui="tabs" />
@@ -331,7 +383,6 @@
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="9" side_tool="false" content_ui="tabs" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="3" side_tool="false" content_ui="combo" />
-      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
     </layout>
     <layout-to-restore>
@@ -373,10 +424,23 @@
     <MESSAGE value="fixed swc shift bug, &#10;there is mismatch with JW as there is a bug in JW that causes rounding errors&#10;added JW class into functions. that creates octree format for output and transform file &#10;cleaned up main code" />
     <MESSAGE value="fixed swc shift bug, &#10;there is mismatch with JW as there is a bug in JW that causes rounding errors&#10;added JW class into functions. that creates octree format for output and transform file &#10;cleaned up main code&#10;fixed graph search, seed location and travelsal bugs to create proper recon that follows monotonic increasing indexing constraint" />
     <MESSAGE value="fixed radius mask bug&#10;moved JW stuff out into navigator project" />
-    <option name="LAST_COMMIT_MESSAGE" value="fixed radius mask bug&#10;moved JW stuff out into navigator project" />
+    <MESSAGE value="cleaned up the code, fixed scale bug, tested for large runs" />
+    <option name="LAST_COMMIT_MESSAGE" value="cleaned up the code, fixed scale bug, tested for large runs" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/segmentAxon.py</url>
+          <line>82</line>
+          <option name="timeStamp" value="80" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/segmentAxon.py</url>
+          <line>35</line>
+          <option name="timeStamp" value="81" />
+        </line-breakpoint>
+      </breakpoints>
       <default-breakpoints>
         <breakpoint type="python-exception">
           <properties notifyOnTerminate="true" exception="BaseException">
@@ -384,7 +448,7 @@
           </properties>
         </breakpoint>
       </default-breakpoints>
-      <option name="time" value="80" />
+      <option name="time" value="82" />
     </breakpoint-manager>
     <watches-manager />
   </component>
@@ -393,10 +457,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="440">
           <caret line="70" column="0" lean-forward="false" selection-start-line="70" selection-start-column="0" selection-end-line="70" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#51#0" expanded="false" />
-            <element signature="e#212#2012#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -404,7 +464,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="792">
           <caret line="36" column="41" lean-forward="false" selection-start-line="36" selection-start-column="41" selection-end-line="36" selection-end-column="41" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -413,7 +472,7 @@
         <state relative-caret-position="462">
           <caret line="38" column="45" lean-forward="false" selection-start-line="38" selection-start-column="45" selection-end-line="38" selection-end-column="45" />
           <folding>
-            <element signature="e#0#31#0" expanded="false" />
+            <element signature="e#0#31#0" expanded="true" />
             <element signature="e#685#1652#0" expanded="false" />
             <element signature="e#5433#6153#0" expanded="false" />
           </folding>
@@ -424,7 +483,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1100">
           <caret line="60" column="18" lean-forward="false" selection-start-line="60" selection-start-column="4" selection-end-line="60" selection-end-column="18" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -442,8 +500,8 @@
           <caret line="14" column="51" lean-forward="true" selection-start-line="14" selection-start-column="51" selection-end-line="14" selection-end-column="51" />
           <folding>
             <element signature="e#0#45#0" expanded="true" />
-            <element signature="e#566#623#0" expanded="false" />
-            <element signature="e#2644#2663#0" expanded="false" />
+            <element signature="e#426#483#0" expanded="false" />
+            <element signature="e#2504#2523#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -459,20 +517,17 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="66">
           <caret line="3" column="17" lean-forward="false" selection-start-line="3" selection-start-column="0" selection-end-line="4" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#51#0" expanded="false" />
-            <element signature="e#212#2012#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/main.py">
+    <entry file="file://$PROJECT_DIR$/segmentAxon.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="880">
           <caret line="53" column="28" lean-forward="false" selection-start-line="53" selection-start-column="28" selection-end-line="53" selection-end-column="28" />
           <folding>
-            <element signature="e#14#32#0" expanded="true" />
-            <element signature="e#841#866#0" expanded="false" />
+            <element signature="e#0#9#0" expanded="true" />
+            <element signature="e#1870#1956#0" expanded="false" />
+            <marker date="1518561308843" expanded="true" signature="5557:5810" ph="..." />
           </folding>
         </state>
       </provider>
@@ -503,20 +558,17 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="66">
           <caret line="3" column="17" lean-forward="true" selection-start-line="3" selection-start-column="0" selection-end-line="4" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#51#0" expanded="false" />
-            <element signature="e#212#2012#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/main.py">
+    <entry file="file://$PROJECT_DIR$/segmentAxon.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1188">
           <caret line="54" column="0" lean-forward="true" selection-start-line="54" selection-start-column="0" selection-end-line="54" selection-end-column="0" />
           <folding>
-            <element signature="e#14#32#0" expanded="true" />
-            <element signature="e#841#866#0" expanded="false" />
+            <element signature="e#0#9#0" expanded="true" />
+            <element signature="e#1870#1956#0" expanded="false" />
+            <marker date="1518561308843" expanded="true" signature="5557:5810" ph="..." />
           </folding>
         </state>
       </provider>
@@ -543,13 +595,14 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/main.py">
+    <entry file="file://$PROJECT_DIR$/segmentAxon.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1320">
           <caret line="60" column="44" lean-forward="false" selection-start-line="60" selection-start-column="44" selection-end-line="60" selection-end-column="44" />
           <folding>
-            <element signature="e#14#32#0" expanded="true" />
-            <element signature="e#841#866#0" expanded="false" />
+            <element signature="e#0#9#0" expanded="true" />
+            <element signature="e#1870#1956#0" expanded="false" />
+            <marker date="1518561308843" expanded="true" signature="5557:5810" ph="..." />
           </folding>
         </state>
       </provider>
@@ -565,10 +618,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1364">
           <caret line="67" column="45" lean-forward="false" selection-start-line="67" selection-start-column="45" selection-end-line="67" selection-end-column="45" />
-          <folding>
-            <element signature="e#0#51#0" expanded="false" />
-            <element signature="e#212#2012#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -594,13 +643,14 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/main.py">
+    <entry file="file://$PROJECT_DIR$/segmentAxon.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="462">
           <caret line="32" column="19" lean-forward="false" selection-start-line="32" selection-start-column="19" selection-end-line="32" selection-end-column="19" />
           <folding>
-            <element signature="e#14#32#0" expanded="true" />
-            <element signature="e#841#866#0" expanded="false" />
+            <element signature="e#0#9#0" expanded="true" />
+            <element signature="e#1870#1956#0" expanded="false" />
+            <marker date="1518561308843" expanded="true" signature="5557:5810" ph="..." />
           </folding>
         </state>
       </provider>
@@ -612,13 +662,14 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/main.py">
+    <entry file="file://$PROJECT_DIR$/segmentAxon.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="462">
           <caret line="32" column="19" lean-forward="false" selection-start-line="32" selection-start-column="19" selection-end-line="32" selection-end-column="19" />
           <folding>
-            <element signature="e#14#32#0" expanded="true" />
-            <element signature="e#841#866#0" expanded="false" />
+            <element signature="e#0#9#0" expanded="true" />
+            <element signature="e#1870#1956#0" expanded="false" />
+            <marker date="1518561308843" expanded="true" signature="5557:5810" ph="..." />
           </folding>
         </state>
       </provider>
@@ -665,29 +716,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/floodfill.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="396">
-          <caret line="18" column="0" lean-forward="true" selection-start-line="18" selection-start-column="0" selection-end-line="18" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/seg.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="792">
-          <caret line="36" column="41" lean-forward="false" selection-start-line="36" selection-start-column="41" selection-end-line="36" selection-end-column="41" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/frangi3d/hessian.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="440">
           <caret line="70" column="0" lean-forward="false" selection-start-line="70" selection-start-column="0" selection-end-line="70" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#51#0" expanded="false" />
-            <element signature="e#212#2012#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -702,14 +734,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="279">
           <caret line="138" column="0" lean-forward="false" selection-start-line="138" selection-start-column="0" selection-end-line="138" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/myshow.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="160">
-          <caret line="61" column="14" lean-forward="false" selection-start-line="61" selection-start-column="14" selection-end-line="61" selection-end-column="14" />
         </state>
       </provider>
     </entry>
@@ -769,7 +793,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="615">
           <caret line="125" column="0" lean-forward="true" selection-start-line="125" selection-start-column="0" selection-end-line="125" selection-end-column="0" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -777,7 +800,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="638">
           <caret line="60" column="18" lean-forward="false" selection-start-line="60" selection-start-column="4" selection-end-line="60" selection-end-column="18" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -789,37 +811,61 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/segment.py">
+    <entry file="file://$PROJECT_DIR$/seg.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="90">
-          <caret line="83" column="16" lean-forward="true" selection-start-line="83" selection-start-column="16" selection-end-line="83" selection-end-column="16" />
-          <folding>
-            <element signature="e#0#31#0" expanded="false" />
-            <element signature="e#685#1652#0" expanded="false" />
-            <element signature="e#5433#6153#0" expanded="false" />
-          </folding>
+        <state relative-caret-position="576">
+          <caret line="36" column="41" lean-forward="false" selection-start-line="36" selection-start-column="41" selection-end-line="36" selection-end-column="41" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/floodfill.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="396">
+          <caret line="18" column="0" lean-forward="true" selection-start-line="18" selection-start-column="0" selection-end-line="18" selection-end-column="0" />
+          <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/functions.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="359">
-          <caret line="132" column="38" lean-forward="true" selection-start-line="132" selection-start-column="38" selection-end-line="132" selection-end-column="38" />
+        <state relative-caret-position="270">
+          <caret line="152" column="20" lean-forward="true" selection-start-line="152" selection-start-column="20" selection-end-line="152" selection-end-column="20" />
           <folding>
             <element signature="e#0#45#0" expanded="true" />
-            <element signature="e#566#623#0" expanded="false" />
-            <element signature="e#2644#2663#0" expanded="false" />
+            <element signature="e#426#483#0" expanded="false" />
+            <element signature="e#2504#2523#0" expanded="false" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/main.py">
+    <entry file="file://$PROJECT_DIR$/segment.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="270">
-          <caret line="84" column="60" lean-forward="false" selection-start-line="84" selection-start-column="60" selection-end-line="84" selection-end-column="60" />
+        <state relative-caret-position="820">
+          <caret line="123" column="22" lean-forward="false" selection-start-line="123" selection-start-column="14" selection-end-line="123" selection-end-column="22" />
           <folding>
-            <element signature="e#14#32#0" expanded="true" />
-            <element signature="e#841#866#0" expanded="false" />
+            <element signature="e#0#31#0" expanded="true" />
+            <element signature="e#685#1652#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/myshow.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="136">
+          <caret line="61" column="14" lean-forward="false" selection-start-line="61" selection-start-column="14" selection-end-line="61" selection-end-column="14" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/segmentAxon.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-1364">
+          <caret line="19" column="109" lean-forward="false" selection-start-line="19" selection-start-column="109" selection-end-line="19" selection-end-column="109" />
+          <folding>
+            <element signature="e#0#9#0" expanded="true" />
+            <element signature="e#1870#1956#0" expanded="false" />
+            <marker date="1518561308843" expanded="true" signature="5557:5810" ph="..." />
           </folding>
         </state>
       </provider>

@@ -1,11 +1,6 @@
 from morphsnakes import morphsnakes as smorph
-# from chanvese import chanvese3d as cv3d
 import numpy as np
-import itertools
-import h5py
-import os
-from skimage import io
-from skimage.transform import resize
+
 from scipy.sparse import csr_matrix, find
 import networkx as nx
 
