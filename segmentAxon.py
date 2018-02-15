@@ -9,6 +9,7 @@ from skimage import graph as skig
 from scipy.ndimage.filters import median_filter,minimum_filter
 # sys.path.insert(0, '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/lineScanFix')
 import segment as seg
+import re
 
 # need it for debug/viz
 import SimpleITK as sitk
@@ -16,8 +17,11 @@ import matplotlib.pyplot as plt
 
 def main(argv):
     generate_output = True
+    selected_channel = 1
     input_h5_file = '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/navigator/data/2017-11-17_G-017_Seg-1/2017-11-17_G-017_Seg-1-cropped.h5'
     output_folder = '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/navigator/data/2017-11-17_G-017_Seg-1/'
+    input_h5_file = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-001_consensus/2017-09-25_G-001_consensus-carved.h5'
+    output_folder = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-001_consensus/'
     try:
         opts, args = getopt.getopt(argv,"hi:o:",["input_h5_file=","output_folder="])
     except getopt.GetoptError:
@@ -60,6 +64,21 @@ def main(argv):
     # 2) active countours
     # 3) stat thresholding: TODO: diffusion is buggy, might be better to switch to a regularized version
 
+    # figure out signal channel
+    # pattern_strings = ['\xc2d', '\xa0', '\xe7', '\xc3\ufffdd', '\xc2\xa0', '\xc3\xa7', '\xa0\xa0', '\xc2', '\xe9']
+    if selected_channel == None:
+        pattern_strings = ['_G-','_G_']
+        pattern_string = '|'.join(pattern_strings)
+        pattern = re.compile(pattern_string)
+        if re.search(pattern, os.path.split(inputfolder)[1]):
+            # green channel
+            ch = 0
+        else:
+            ch = 1
+    else:
+        ch = selected_channel
+
+
     with h5py.File(input_h5_file, "r") as f:
         recon = f["reconstruction"]
         volume = f["volume"]
@@ -80,6 +99,7 @@ def main(argv):
         radius_list = func.getRadiusIndicies(radius=sigmas)
 
         for ix, txt in enumerate(recon[:, :]):
+            # ix = np.argmin(np.sum(np.abs(np.array([757.3, 2327.5, 575.0]) - recon[:, 2:5]), axis=1))
             print('{} out of {}'.format(ix,recon.shape[0]))
             start_node = ix #  recon[ix,0]
             end_node = recon[ix,6]-1 # 0 based indexing
@@ -110,13 +130,12 @@ def main(argv):
             ## fix line shifts
             # st = -9;en = 10;shift, shift_float = lnf.findShift(inputim[:,:inputim.shape[1]//2*2,:], st, en, False)
             ##
-            inputim = np.log(np.asarray(crop[:,:,:,0], np.float)) # add 1 to prevent /0 cases for log scaling
+            inputim = np.log(np.asarray(crop[:,:,:,1], np.float)) # add 1 to prevent /0 cases for log scaling
             inputim =(inputim-inputim.min())/(inputim.max()-inputim.min())
 
             ## FRANGI
             filtresponse, scaleresponse =frangi.frangi(inputim, sigmas,window_size = window_size,
                                                        alpha=0.01, beta=1.5, frangi_c=2*np.std(inputim), black_vessels=False)
-
 
             # sitk.Show(sitk.GetImageFromArray(np.swapaxes(inputim,2,0)))
             # sitk.Show(sitk.GetImageFromArray(np.swapaxes(filtresponse/np.max(filtresponse),2,0)))
@@ -127,34 +146,26 @@ def main(argv):
             cost_array = minimum_filter(scaleresponse,2)/(0.001+filtresponse)
             cost_array[cost_array>100]=100
 
+            # TODO: smooth/prune path: if s[i-1] has +/-1 access to s[i+1], delete s[i], this is to prevent triangular extensions, i.e. |\ or |/
             # shortest path based on cost_array
             path,cost = skig.route_through_array(cost_array, start=start_, end=end_, fully_connected=True)
             path_array = np.asarray(path)
-
             # sample along path
             path_array_indicies = np.ravel_multi_index(path_array.T,cost_array.shape)
-
-            # frangi radius estimate around tracing
-            radius_estimate_around_trace = scaleresponse.flat[path_array_indicies]
-            # filter radius to smooth
-            radius_estimate_around_trace = median_filter(radius_estimate_around_trace,3)
-            # print(np.max(radius_estimate_around_trace))
-
-            # fine tuned swc file
             xyz_trace_locations = path_array + bbox_min
-
+            # index ids for each location
+            inds = np.ravel_multi_index(xyz_trace_locations.T,output_dims[:3])
             # plt.figure()
             # plt.imshow(np.max(filtresponse**.05,axis=2).T)
             # plt.plot(path_array[:,0],path_array[:,1])
 
-            # index ids for each location
-            inds = np.ravel_multi_index(xyz_trace_locations.T,output_dims[:3])
-
+            # branch data based on Frangi
+            # frangi radius estimate around tracing
+            radius_estimate_around_trace = scaleresponse.flat[path_array_indicies]
+            # filter radius to smooth
+            radius_estimate_around_trace = median_filter(radius_estimate_around_trace,3)
             # radius as 4th column
             branch_data = np.concatenate((xyz_trace_locations,radius_estimate_around_trace[:,None],inds[:,None]),axis=1)
-
-            for ii,ind in enumerate(inds):
-                lookup_data[ind] = branch_data[ii,:4]
 
             # store recon info
             linkdata.append(branch_data)
@@ -177,14 +188,22 @@ def main(argv):
                     segment = seg.volumeSeg(inputim,path_array,cost_array=np.max(cost_array)-cost_array) # revert cost for positive active contour
 
                 segment.runSeg()
+                # TODO: ability to export swc for AC
+                radius_estimate_around_trace_AC = segment.estimateRad()
+
                 # sitk.Show(sitk.GetImageFromArray(np.swapaxes(segment.mask_ActiveContour,2,0)))
                 # sitk.Show(sitk.GetImageFromArray(np.swapaxes(inputim,2,0)))
                 # sitk.Show(sitk.GetImageFromArray(np.swapaxes(filtresponse/np.max(filtresponse),2,0)))
 
                 # patch wise write is buggy, so location wise painting
-                xyz_signal = bbox_min[:,None] + np.where(segment.mask_ActiveContour)
-                for xyz in xyz_signal.transpose():
-                    dset_segmentation_AC[tuple(xyz)] = 1
+
+                paintlocs = bbox_min[:,None] + np.where(segment.mask_ActiveContour)
+                for locs in paintlocs.transpose():
+                    dset_segmentation_AC[tuple(locs)] = 1
+
+            for ii,ind in enumerate(inds):
+                lookup_data[ind] = branch_data[ii,:4]
+
 
         swc_data = np.array(func.link2pred(linkdata,lookup_data))
         func.array2swc(swcfile=swc_output_file, swcdata=swc_data)

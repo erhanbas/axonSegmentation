@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import SimpleITK as sitk
 from myshow import myshow, myshow3d
 import numpy as np
+from scipy import ndimage
+
 # Download data to work on
 # from downloaddata import fetch_data as fdata
 
@@ -11,11 +13,19 @@ class volumeSeg(object):
         self.seeds = path_array
         self.inputimage = inputimage
         self.cost_array = cost_array
+        self.path_array_indicies = np.ravel_multi_index(path_array.T, inputimage.shape)
 
     def convert2itk(self,inputimage,type=sitk.sitkUInt8):
         # converts to rescaled 8bit itk image format
         tmp = sitk.GetImageFromArray(np.swapaxes(inputimage,2,0))
         return (sitk.Cast(sitk.RescaleIntensity(tmp), type))
+
+    def estimateRad(self):
+        # apply distance transform
+        dist_transform_image = ndimage.distance_transform_edt(self.mask_ActiveContour)
+        #estimate along seed
+        return(dist_transform_image.flat[self.path_array_indicies])
+
 
     def runSeg(self,radius=1):
         inim = self.convert2itk(self.inputimage) # converts to itk u8bit image
@@ -96,6 +106,9 @@ class volumeSeg(object):
         binary.SetOutsideValue(0)
         binary.SetInsideValue(255)
         mask = binary.Execute(geoActiveCont_image)
+
+        # estimate radius around initial trace
+
         return mask
 
     def segmentBasedOnThreshold(self,inim,seg):
