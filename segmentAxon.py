@@ -18,10 +18,9 @@ import matplotlib.pyplot as plt
 def main(argv):
     generate_output = True
     selected_channel = 1
-    input_h5_file = '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/navigator/data/2017-11-17_G-017_Seg-1/2017-11-17_G-017_Seg-1-cropped.h5'
-    output_folder = '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/navigator/data/2017-11-17_G-017_Seg-1/'
-    input_h5_file = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-001_consensus/2017-09-25_G-001_consensus-carved.h5'
-    output_folder = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-001_consensus/'
+    # input_h5_file = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-005_Consensus/2017-09-25_G-005_Consensus-carved.h5'
+    # output_folder = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-005_Consensus/'
+
     try:
         opts, args = getopt.getopt(argv,"hi:o:",["input_h5_file=","output_folder="])
     except getopt.GetoptError:
@@ -34,11 +33,10 @@ def main(argv):
             sys.exit()
         elif opt in ("-i", "--input_h5_file"):
             input_h5_file = arg
+            print('SWCFILE   :', input_h5_file)
         elif opt in ("-o", "--output_folder"):
             output_folder = arg
-
-    print('SWCFILE   :', input_h5_file)
-    print('OUTPUT    :', output_folder)
+            print('OUTPUT    :', output_folder)
 
     # swc_name = '2017-11-17_G-017_Seg-1'
     # data_folder = os.path.join('/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/navigator/data/',swc_name)
