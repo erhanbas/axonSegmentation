@@ -14,12 +14,68 @@ import re
 # need it for debug/viz
 import SimpleITK as sitk
 import matplotlib.pyplot as plt
+def updateVolumetricLabeling(input_folder = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo'):
+
+    swcfiles = [os.path.join(input_folder, fold, files) for fold in os.listdir(input_folder) if
+                os.path.isdir(os.path.join(input_folder, fold)) for files in
+                os.listdir(os.path.join(input_folder, fold)) if
+                files.endswith("-proofed.swc")]
+    swcfiles.sort()
+
+    sigmas = np.array([0.75, 1.0, 1.5, 2, 2.5])
+    radius_list = func.getRadiusIndicies(radius=sigmas)
+
+    for swc_file in swcfiles[1]:
+        path, filename = os.path.split(swc_file)
+        output_h5_file = os.path.join(path, '-'.join(filename.split('-')[:-1]) + '-annotation.h5')
+        raw_h5_file = os.path.join(path, '-'.join(filename.split('-')[:-1]) + '-init.h5')
+        um, edges, R, offset, scale, header = func.readSWC(swcfile=swc_file, scale=1)
+        branch_data = np.concatenate((um, R[:, None]), axis=1)
+        with h5py.File(output_h5_file, "w") as fd:
+            with h5py.File(raw_h5_file, "r") as fs:
+                # copy raw data from init into annotatation
+                fd_volumes = fd.create_group('volumes/')
+                fs.copy('volume', fd_volumes,name='raw')
+                fd_sparse_recon = fd.create_group('reconstructions/')
+                fs.copy('reconstruction', fd_sparse_recon, name='sparse')
+
+            with h5py.File(output_h5_file, "r+") as fd:
+                # dense reconstruction
+                try:
+                    dset_swc = fd.create_dataset("/reconstructions/dense", (um.shape[0], 7), dtype='f')
+                except:
+                    dset_swc = fd["/reconstructions/dense"]
+
+                for iter, xyz_ in enumerate(um):
+                    xyz_ = np.ceil(xyz_ - np.sqrt(np.finfo(float).eps))
+                    dset_swc[iter, :] = np.array(
+                        [edges[iter, 0].__int__(), 1, xyz_[0], xyz_[1], xyz_[2], R[iter], edges[iter, 1].__int__()])
+
+
+                dset_trace = fd.create_dataset("/volumes/trace", fd['volumes/raw'].shape[:3],
+                                                      dtype='uint8',
+                                                      chunks=fd['volumes/raw'].chunks[:3], compression="gzip",
+                                                      compression_opts=9)
+
+                dset_segmentation = fd.create_dataset("/volumes/segmentation", fd['volumes/raw'].shape[:3], dtype='uint8',
+                                                            chunks=fd['volumes/raw'].chunks[:3], compression="gzip",
+                                                            compression_opts=9)
+                for xyzr in branch_data:
+                    xyz=xyzr[:3]
+                    r=xyzr[3]
+                    # search the nearest key
+                    mask = radius_list[sigmas[np.argmin((sigmas-r)**2)]]
+                    paintlocs = np.where(mask)-np.floor(r) + xyz[:,None]
+                    dset_trace[tuple(xyz)] = 1
+                    for locs in paintlocs.transpose():
+                        dset_segmentation[tuple(locs)] = 1
+
 
 def main(argv):
     generate_output = True
-    selected_channel = 1
-    # input_h5_file = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-005_Consensus/2017-09-25_G-005_Consensus-carved.h5'
-    # output_folder = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-005_Consensus/'
+    selected_channel = 1 # 0 or 1: 2017-09-25 sample has flipped channels
+    input_h5_file = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-003_Consensus/2017-09-25_G-003_Consensus-carved.h5'
+    output_folder = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-003_Consensus/'
 
     try:
         opts, args = getopt.getopt(argv,"hi:o:",["input_h5_file=","output_folder="])
@@ -89,14 +145,16 @@ def main(argv):
             dset_segmentation_Frangi = f_out.create_dataset("/segmentation/Frangi", volume.shape[:3], dtype='uint8',
                                                             chunks=f["volume"].chunks[:3], compression="gzip",
                                                             compression_opts=9)
+            dset_swc_Frangi = f_out.create_dataset("/reconstruction/sparse", data=recon[:], dtype='f')
 
         lookup_data={} # keeps track of indicies, subs and radius
-        sigmas = np.array([0.5, 1.0, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5])
+        # sigmas = np.array([0.75, 1.0, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5])
+        sigmas = np.array([0.75, 1.0, 1.5, 2, 2.5])
         linkdata = []
         window_size = 3
         radius_list = func.getRadiusIndicies(radius=sigmas)
 
-        for ix, txt in enumerate(recon[:, :]):
+        for ix, txt in enumerate(recon[:100, :]):
             # ix = np.argmin(np.sum(np.abs(np.array([757.3, 2327.5, 575.0]) - recon[:, 2:5]), axis=1))
             print('{} out of {}'.format(ix,recon.shape[0]))
             start_node = ix #  recon[ix,0]
@@ -135,13 +193,16 @@ def main(argv):
             filtresponse, scaleresponse =frangi.frangi(inputim, sigmas,window_size = window_size,
                                                        alpha=0.01, beta=1.5, frangi_c=2*np.std(inputim), black_vessels=False)
 
+            # min filter to to local noise supression to tune to local center
+            scaleresponse = minimum_filter(scaleresponse,3)
+
             # sitk.Show(sitk.GetImageFromArray(np.swapaxes(inputim,2,0)))
             # sitk.Show(sitk.GetImageFromArray(np.swapaxes(filtresponse/np.max(filtresponse),2,0)))
             # sitk.Show(sitk.GetImageFromArray(np.swapaxes(scaleresponse,2,0)))
 
             # cost: high intensity low scale
             # filter out scale response for local radius variations:
-            cost_array = minimum_filter(scaleresponse,2)/(0.001+filtresponse)
+            cost_array = scaleresponse/(0.001+filtresponse)
             cost_array[cost_array>100]=100
 
             # TODO: smooth/prune path: if s[i-1] has +/-1 access to s[i+1], delete s[i], this is to prevent triangular extensions, i.e. |\ or |/
@@ -180,7 +241,7 @@ def main(argv):
                         dset_segmentation_Frangi[tuple(locs)] = 1
 
                 ## segmentation based on active contours
-                if 1:
+                if 0:
                     segment = seg.volumeSeg(filtresponse,path_array) # working
                 else: # use cost function to initialize segmentation
                     segment = seg.volumeSeg(inputim,path_array,cost_array=np.max(cost_array)-cost_array) # revert cost for positive active contour
@@ -205,8 +266,12 @@ def main(argv):
 
         swc_data = np.array(func.link2pred(linkdata,lookup_data))
         func.array2swc(swcfile=swc_output_file, swcdata=swc_data)
+
         if generate_output:
-            dset_swc_Frangi = f_out.create_dataset("/trace/trace", data=swc_data, dtype='f')
+            # dump dense reconstruction
+            f_out.create_dataset("/reconstruction/dense", data=swc_data, dtype='f')
+
+            # close output data
             f_out.close()
 
 if __name__ == "__main__":
