@@ -14,31 +14,110 @@ import json
 import util
 import improc
 
+def random_Stuff():
+
+    with h5py.File(groups[0],'r') as inputh5:
+        # inputh5.visititems(print_attrs)
+        for dataset in groups[1::][0::]:
+            dset_ = inputh5[dataset]
+
+    i3 = sitk.GetImageFromArray(np.swapaxes(segment_patch[:,:,:],2,0))
+    # # i123 = sitk.LabelOverlay(i1, i2)
+    sitk.Show(i1)
+
+
 def print_attrs(name, obj):
     print(name)
     # for key, val in obj.attrs.iteritems():
     #     print('{}:{}'.format(key,val))
+def cropBB():
+
+    BBox = [390, 1919, 2420, 4460, 2550, 3680]  # [x_s,x_e,y_s,y_e,z_s,z_e]
+    BBox = [900, 1400, 2700, 3360, 2911, 3300]  # [x_s,x_e,y_s,y_e,z_s,z_e]
+    sh = 10
+    BBox_ = [bb+int((it%2-.5)*2)*sh for it,bb in enumerate(BBox)]
+
+    input_h5_file = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-007_consensus/2017-09-25_G-007_consensus-annotation.h5:/volumes/raw:/volumes/segmentation:/volumes/trace'
+    groups = input_h5_file.split(':')
+
+    output_h5_file = groups[0].split('.')[0]+'-'+'_'.join([str(bb) for bb in BBox]) +'.h5'
+    with h5py.File(groups[0],'r') as inputh5:
+        # inputh5.visititems(print_attrs)
+        for dataset in groups[1::][0::]:
+            dset_ = inputh5[dataset]
+
+            if dset_.ndim == 3:
+                cropedData = dset_[BBox_[0]:BBox_[1], BBox_[2]:BBox_[3], BBox_[4]:BBox_[5]]
+            else:
+                cropedData = dset_[BBox_[0]:BBox_[1], BBox_[2]:BBox_[3], BBox_[4]:BBox_[5],:]
+
+            with h5py.File(output_h5_file,'a') as outputh5:
+                # check if dataset exists
+                if dataset in outputh5:
+                    continue
+                if dset_.ndim > 3:
+                    outputh5.create_dataset(dataset, data=cropedData[:,:,:,1],
+                                               dtype='uint16',
+                                               compression="gzip",
+                                               compression_opts=9)
+                else:
+                    outputh5.create_dataset(dataset, data=cropedData[:,:,:],
+                                               dtype='uint8',
+                                               compression="gzip",
+                                               compression_opts=9)
+
+
+
+def split_training_samples():
+    inputh5 = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-007_consensus/2017-09-25_G-007_consensus-training_raw.h5'
+    outputh5 = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-007_consensus/2017-09-25_G-007_consensus-training_perchannel_raw.h5'
+
+    in_h5 = h5py.File(inputh5, 'r')
+    dset_in = in_h5["volume"]
+    siz = dset_in.shape
+
+
+
+
+    out_h5 = h5py.File(outputh5, 'w')
+    dset_out = out_h5["volume"]
+    dset_out = raw_data_h5.create_dataset("volume", data=dset_in.reshape((1,) + im.shape[:]),
+                                            dtype='uint16',
+                                            compression="gzip",
+                                            compression_opts=9)
+
+
+    dset_trace.attrs['axistags'] = raw_tag_data.__str__()
+
+
 def create_test_samples(tilepath,outfile):
     tilepaths=[]
     tilepaths.append('/nrs/mouselight/SAMPLES/2017-09-25-padded/1/8/3/5/8/7')
     tilepaths.append('/nrs/mouselight/SAMPLES/2017-09-25-padded/1/8/3/5/8/8')
     tilepaths.append('/nrs/mouselight/SAMPLES/2017-09-25-padded/3/6/2/2/5/7')
-    outfold = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-007_consensus/'
+    tilepaths.append('/nrs/mouselight/SAMPLES/2018-03-09/1/8/7/6/2/4')
+    outfold = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/test/'
 
     for iter,tilepath in enumerate(tilepaths):
         print(iter,tilepath)
-        im = improc.loadTiles(tilepath).swapaxes(0,2)
-        outfile = outfold + 'test-{}.h5'.format(iter)
+        im = improc.loadTiles(tilepath).transpose(3,2,1,0)#xyzc->czyx
+        outfile = outfold + 'test-{}-ch1.h5'.format(iter)
         with open('/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-007_consensus/axis_tags_raw.json', 'r') as f:
            raw_tag_data = json.load(f)
 
         with h5py.File(outfile, 'w') as raw_data_h5:
-            dset_trace = raw_data_h5.create_dataset("volume", data=im.reshape((1,)+im.shape[:]),
+            dset_trace = raw_data_h5.create_dataset("volume", data=im[1].reshape((1,1,)+im.shape[1::]),
                                                     dtype='uint16',
                                                     compression="gzip",
                                                     compression_opts=9)
             dset_trace.attrs['axistags'] = raw_tag_data.__str__()
 
+
+# def cropBB():
+#     out_raw_h5 = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-007_consensus/2017-09-25_G-007_consensus-training_raw.h5'
+#     out_raw_h5_u8 = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-007_consensus/2017-09-25_G-007_consensus-training_raw_u8.h5'
+#     out_sparse_label_h5 = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-007_consensus/2017-09-25_G-007_consensus-training_sparse_label.h5'
+#     out_dense_label_h5 = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-007_consensus/2017-09-25_G-007_consensus-training_dense_label.h5'
 
 
 def oct_crop(params,oct_path,xyz,patch_half_size = (25,25,25)):
@@ -62,9 +141,9 @@ def oct_crop(params,oct_path,xyz,patch_half_size = (25,25,25)):
         xres_ = xres_all[iter]
         tilename = '/'.join(a for a in idTile)
         tilepath = oct_path + '/' + tilename
-        im = improc.loadTiles(tilepath)
+        im = improc.loadTiles(tilepath)  #xyzc
         # crop patch around res
-        image_patches.append(crop_patch(im, xres_, patch_half_size))
+        image_patches.append(crop_patch(im, xres_, patch_half_size).transpose([3,2,1,0])) #czyx
         # sitk.Show(sitk.GetImageFromArray(np.swapaxes(im[:,:,:,0], 2, 0)))
     return image_patches
 
@@ -113,16 +192,19 @@ def main(argv):
 
     flip_axis = True # to compansate a bug in 2017-09-25 JW workspaces
     user_input = True
+    signal_channel = 0 # 0: ch0, 1: ch1
     patch_half_size=(25,25,25)
     p = 0.2 # negative examples sampring rate. p for segment-/+epsilon bound, (1-p) from random background region
+    pos_sample_label_tag = 1
+    neg_sample_label_tag = 2
     if user_input:
         oct_path = '/nrs/mouselight/SAMPLES/2017-09-25-padded'
         coord_list = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/negative_sample_coordinates.txt'
-        neg_samples_raw = crop_negative_patches_from_oct(oct_path, coord_list,patch_half_size)
-        neg_samples_label = np.zeros(neg_samples_raw.shape[:-1],np.uint8)+2
+        neg_samples_raw = crop_negative_patches_from_oct(oct_path, coord_list,patch_half_size) #tczyx
+        neg_samples_label = np.zeros(np.array(neg_samples_raw.shape)[[0,2,3,4]],np.uint8)+neg_sample_label_tag
         # mute
         mask = np.random.choice([0, 1], size=neg_samples_label.shape[1::], p=[.99, .01])
-        mask[patch_half_size[0],patch_half_size[1],patch_half_size[2]] = 1
+        mask[patch_half_size[0],patch_half_size[1],patch_half_size[2]] = 1 # make sure to add the center voxel
         for ii in range(neg_samples_label.shape[0]):
             neg_samples_label[ii, :, :, :] = neg_samples_label[ii, :, :, :] * mask
 
@@ -183,27 +265,35 @@ def main(argv):
 
         node_type.append(bin_array[0,iter])
 
+        # raw_patch is in x/y/z/c format (TODO: getrid of flip_axis patch, only valids for 2017-09-25 sample!!)
         if flip_axis:
             raw_patch = np.flip(crop_patch(raw_data,pos_sub,patch_half_size),axis=3)
         else:
             raw_patch = crop_patch(raw_data,pos_sub,patch_half_size)
 
+        raw_patch = raw_patch.transpose([3, 2, 1, 0])
+
         trace_patch = crop_patch(trace_data,pos_sub,patch_half_size)
+        trace_patch =trace_patch.transpose([2, 1, 0])
 
         segment_patch = crop_patch(segmentation_data,pos_sub,patch_half_size)
+        segment_patch =segment_patch.transpose([2, 1, 0])
 
-        stack = np.stack((raw_patch[:,:,:,0],trace_patch,segment_patch),axis=3)
-
-        # # sitk.Show(sitk.GetImageFromArray(np.swapaxes(label_patch, 2, 0)))
-        # i1 = sitk.GetImageFromArray(np.swapaxes(raw_patch[:,:,:,0],2,0))
+        # stack = np.stack((raw_patch[:,:,:,0],trace_patch,segment_patch),axis=3)
+        #
+        # # # sitk.Show(sitk.GetImageFromArray(np.swapaxes(label_patch, 2, 0)))
+        # i1 = sitk.GetImageFromArray(np.swapaxes(raw_patch[1,:,:,:],2,0))
         # i2 = sitk.GetImageFromArray(np.swapaxes(trace_patch[:,:,:],2,0))
         # i3 = sitk.GetImageFromArray(np.swapaxes(segment_patch[:,:,:],2,0))
-        # # i123 = sitk.LabelOverlay(i1, i2)
+        # # # i123 = sitk.LabelOverlay(i1, i2)
         # sitk.Show(i1)
         # sitk.Show(i2)
+        # sitk.Show(sitk.GetImageFromArray(np.swapaxes(test[0],0,0)))
 
-        # 3D patch for ilastik tzyxc format
-        rawstack.append(raw_patch.swapaxes(0,2))
+        rawstack.append(raw_patch)
+        denselabelstack.append(1*segment_patch)
+        #########################################################################################################
+        #########################################################################################################
 
         # sparse annotation
         label_patch = 1*trace_patch
@@ -228,17 +318,14 @@ def main(argv):
         # paint negative labels
         label_patch.flat[indicies] = 2
         sparselabelstack.append(label_patch)
-
-        tr=raw_patch[:,:,:,0]
+        #########################################################################################################
+        #########################################################################################################
+        # stat to sample patches [min_ch0 med_ch0 min_ch1 med_ch1].
+        tr=raw_patch[0,:,:,:]
         rt=[np.min(tr[label_patch == 1]),np.median(tr[label_patch == 1])]
-        tr=raw_patch[:,:,:,1]
+        tr=raw_patch[1,:,:,:]
         rt+=[np.min(tr[label_patch == 1]),np.median(tr[label_patch == 1])]
         stats.append(rt)
-
-        #dense annotation
-        denselabelstack.append(1*segment_patch)
-
-
 
     stats_ = np.array(stats)
     node_type_ = np.array(node_type)
@@ -258,12 +345,16 @@ def main(argv):
     sparselabelstack = sparselabelstack[selected_indicies,:,:,:]
     denselabelstack = denselabelstack[selected_indicies,:,:,:]
 
-    i3 = sitk.GetImageFromArray(np.swapaxes(rawstack[241, :, :, :, 0], 0, 0))
+    i3 = sitk.GetImageFromArray(np.swapaxes(neg_samples_raw[263, 0, :, :], 0, 0))
     sitk.Show(i3)
+    # i3 = sitk.GetImageFromArray(np.swapaxes(sparselabelstack[263, :, :, :], 0, 0))
+    # sitk.Show(i3)
+    # i3 = sitk.GetImageFromArray(np.swapaxes(denselabelstack[263, :, :, :], 0, 0))
+    # sitk.Show(i3)
 
     # dump to h5
     out_raw_h5 = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-007_consensus/2017-09-25_G-007_consensus-training_raw.h5'
-    out_raw_h5_u8 = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-007_consensus/2017-09-25_G-007_consensus-training_raw_u8.h5'
+    out_raw_h5_singleChannel = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-007_consensus/2017-09-25_G-007_consensus-training_raw_singleChannel.h5'
     out_sparse_label_h5 = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-007_consensus/2017-09-25_G-007_consensus-training_sparse_label.h5'
     out_dense_label_h5 = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-007_consensus/2017-09-25_G-007_consensus-training_dense_label.h5'
 
@@ -285,23 +376,35 @@ def main(argv):
 
     with h5py.File(out_raw_h5, 'w') as raw_data_h5:
         dset_trace = raw_data_h5.create_dataset("volume", data=rawstack,
-                                   dtype='uint16',
-                                   compression="gzip",
-                                   compression_opts=9)
+                                                dtype='uint16',
+                                                compression="gzip",
+                                                compression_opts=9,
+                                                maxshape=(None, )+rawstack.shape[1::])
         dset_trace.attrs['axistags'] = raw_tag_data.__str__()
+
+    with h5py.File(out_raw_h5_singleChannel, 'w') as raw_data_h5:
+        dset_trace = raw_data_h5.create_dataset("volume", data=rawstack[:,signal_channel,:,:].reshape(rawstack.shape[0:1]+(1,)+rawstack.shape[2::]),
+                                                dtype='uint16',
+                                                compression="gzip",
+                                                compression_opts=9,
+                                                maxshape=(None,1,) + rawstack.shape[2::])
+        dset_trace.attrs['axistags'] = raw_tag_data.__str__()
+
 
     with h5py.File(out_sparse_label_h5, 'w') as label_data_h5:
         dset_trace = label_data_h5.create_dataset("volume", data=sparselabelstack,
-                                                dtype='uint8',
-                                                compression="gzip",
-                                                compression_opts=9)
+                                                  dtype='uint8',
+                                                  compression="gzip",
+                                                  compression_opts=9,
+                                                  maxshape=(None,) + rawstack.shape[2::])
         dset_trace.attrs['axistags'] = label_tag_data.__str__()
 
     with h5py.File(out_dense_label_h5, 'w') as label_data_h5:
         dset_trace = label_data_h5.create_dataset("volume", data=denselabelstack,
-                                                dtype='uint8',
-                                                compression="gzip",
-                                                compression_opts=9)
+                                                  dtype='uint8',
+                                                  compression="gzip",
+                                                  compression_opts=9,
+                                                  maxshape=(None,) + rawstack.shape[2::])
         dset_trace.attrs['axistags'] = label_tag_data.__str__()
 
 

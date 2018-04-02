@@ -113,7 +113,7 @@ def loadTiles(tilepath,ext=".tif"):
             im = io.imread(tilefiles)  # zyx order
             IM.append(np.swapaxes(im, 0, 2))
 
-    return np.stack(IM,axis=3)
+    return np.stack(IM,axis=3) #xyzc
 
 
 def grid2oct(xyz,depth):
